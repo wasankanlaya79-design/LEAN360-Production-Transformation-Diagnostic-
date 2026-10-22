@@ -1,0 +1,1411 @@
+<title>Cement Plant 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Control-room layout: full-bleed 3D plant yard with floating instrument panels (deliberately dark, single theme) */
+:root{
+  --bg:#0a1118; --panel:rgba(11,20,29,.9); --panel-solid:#0f1a24; --line:#22374a; --fg:#dbe5ec; --muted:#8299ab;
+  --accent:#3cc4d6; --c2:#b48cf2; --run:#33d17a; --high:#f2a33a; --hh:#ef4f4f; --low:#4b8df2; --stop:#5b6b79;
+  --display:"Chakra Petch","Segoe UI",Tahoma,sans-serif; --mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--display);overflow:hidden}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding-block:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));border-bottom:1px solid var(--line);background:var(--bg)}
+.brand{display:flex;align-items:baseline;gap:10px;min-width:0}
+.brand h1{margin:0;font-size:19px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-wrap:balance}
+.brand span{color:var(--muted);font-size:13px}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px;font-family:var(--mono);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.06em;padding:2px 8px;border-radius:3px;border:1px solid currentColor;line-height:1.5}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pill.run{color:var(--run)} .pill.stop{color:var(--stop)} .pill.wait{color:var(--high)} .pill.alarm{color:var(--hh)}
+.stage{position:relative;min-height:0;overflow:hidden}
+#c{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none;outline:none}
+#labels{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.tag{position:absolute;left:0;top:0;pointer-events:auto;cursor:pointer;background:rgba(9,16,23,.82);border:1px solid var(--line);border-left:3px solid var(--stop);color:var(--fg);font:500 10.5px/1.25 var(--mono);padding:3px 6px;white-space:nowrap;border-radius:2px;letter-spacing:.02em;text-align:left}
+.tag b{display:block;font-weight:500;color:var(--muted);font-size:9.5px;letter-spacing:.05em}
+.tag.run{border-left-color:var(--run)} .tag.wait{border-left-color:var(--high)} .tag.alarm{border-left-color:var(--hh)} .tag.on{border-color:var(--accent);border-left-color:var(--accent)}
+.tag:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.zlabel{position:absolute;left:0;top:0;font:600 12px/1 var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--fg);white-space:nowrap;display:flex;align-items:center;gap:6px;opacity:.9}
+.zlabel i{font-style:normal;background:var(--accent);color:#06222a;padding:2px 5px;border-radius:2px}
+.panel{position:absolute;background:var(--panel);border:1px solid var(--line);border-radius:4px;backdrop-filter:blur(6px)}
+.nav{top:12px;left:max(12px,env(safe-area-inset-left,0px));width:224px;padding:8px;display:flex;flex-direction:column;gap:2px}
+.nav h3,.detail .d-zone{margin:0;font:500 10.5px/1.4 var(--mono);color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.nav h3{padding:4px 6px 6px}
+.nav button{all:unset;cursor:pointer;display:grid;grid-template-columns:24px 1fr;gap:6px;align-items:baseline;padding:5px 6px;border-radius:3px;font-size:13px;line-height:1.25}
+.nav button small{display:block;color:var(--muted);font-size:11px}
+.nav button em{font:500 11px var(--mono);font-style:normal;color:var(--accent)}
+.nav button:hover,.nav button.on{background:rgba(60,196,214,.12)}
+.nav button:focus-visible{outline:2px solid var(--accent)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;padding:8px 6px 2px;border-top:1px solid var(--line);margin-top:6px;font:11px var(--mono);color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend span::before{content:"";width:9px;height:9px;border-radius:1px;background:var(--c)}
+.detail{top:12px;right:max(12px,env(safe-area-inset-right,0px));width:300px;max-height:calc(100% - 96px);overflow:auto;padding:12px 14px 14px}
+.d-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.detail h2{margin:6px 0 10px;font-size:18px;font-weight:600;letter-spacing:.03em;text-wrap:balance}
+.detail dl{margin:0;display:grid;grid-template-columns:1fr auto;border-top:1px solid var(--line)}
+.detail dt,.detail dd{padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.detail dt{color:var(--muted)}
+.detail dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.d-level{margin-top:12px;display:flex;flex-direction:column;gap:6px;font-size:12px;color:var(--muted)}
+.d-level .bar{height:8px;background:#16242f;border-radius:2px;overflow:hidden}
+.d-level .bar i{display:block;height:100%;background:var(--run)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.d-hint{margin:12px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+.d-actions{display:flex;gap:8px;margin-top:12px}
+.btn{all:unset;cursor:pointer;font:500 12px var(--display);letter-spacing:.04em;padding:6px 10px;border:1px solid var(--line);border-radius:3px;color:var(--fg);background:var(--panel-solid);white-space:nowrap}
+.btn:hover{border-color:var(--accent)} .btn:focus-visible{outline:2px solid var(--accent)}
+.btn.primary{border-color:var(--accent);color:var(--accent)}
+.controls{bottom:max(12px,env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:8px 12px;width:min(1080px,calc(100% - 24px))}
+.controls .feed{min-width:220px}
+.simbtns{display:flex;gap:4px;flex-wrap:wrap}
+.sbtn{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:3px;font:500 12.5px var(--display);color:var(--fg);background:var(--panel-solid);white-space:nowrap}
+.sbtn svg{width:14px;height:14px;flex:none}
+.sbtn:hover{border-color:var(--accent)} .sbtn:focus-visible{outline:2px solid var(--accent)}
+.sbtn.on{background:rgba(60,196,214,.14);border-color:var(--accent)}
+.i-blue{fill:var(--low)} .i-run{fill:var(--run)} .i-stop{fill:var(--hh)}
+.speed{display:grid;grid-template-columns:auto minmax(90px,140px) auto;align-items:center;gap:8px}
+.speed label{font-size:12px;color:var(--muted);white-space:nowrap}
+.speed output{font:500 13px var(--mono);font-variant-numeric:tabular-nums;min-width:40px;text-align:right}
+.feed{flex:1;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;min-width:0}
+.feed label{font-size:12px;color:var(--muted);white-space:nowrap}
+.feed output{font:500 13px var(--mono);font-variant-numeric:tabular-nums;min-width:44px;text-align:right}
+.hint{position:absolute;left:50%;transform:translateX(-50%);bottom:72px;font-size:12px;color:var(--muted);pointer-events:none;white-space:nowrap}
+.tabs{display:flex;border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.tabs button{all:unset;cursor:pointer;padding:4px 14px;font:600 12px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.tabs button.on{background:rgba(60,196,214,.15);color:var(--accent)}
+.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.dash{position:absolute;inset:0;overflow:auto;background:var(--bg);padding-top:16px;padding-bottom:96px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:12px}
+.kpi{background:var(--panel-solid);border:1px solid var(--line);border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.kpi span{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.kpi strong{font:500 24px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.kpi strong small{font-size:12px;color:var(--muted);margin-left:4px}
+.kpi em{font-style:normal;font-size:11.5px;color:var(--muted)}
+.kpi.alarm{border-color:var(--hh)} .kpi.alarm strong{color:var(--hh)}
+.dgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+.card{background:var(--panel-solid);border:1px solid var(--line);border-radius:4px;padding:12px 14px;min-width:0}
+.card.wide{grid-column:span 2}
+.card>header{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.card h3{margin:0;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase}
+.card header span{font-size:11.5px;color:var(--muted)}
+.key{display:inline-flex;align-items:center;gap:5px;margin-left:10px}
+.key::before{content:"";width:10px;height:3px;background:var(--k)}
+.card canvas{width:100%;height:170px;display:block}
+.bars{display:flex;flex-direction:column;gap:9px}
+.bar-row{display:grid;grid-template-columns:96px 1fr 64px;align-items:center;gap:10px;font-size:12.5px}
+.bar-row small{display:block;color:var(--muted);font-size:11px}
+.track{height:12px;border-radius:2px;background:linear-gradient(90deg,transparent calc(25% - 1px),var(--line) 0 25%,transparent 0 calc(75% - 1px),var(--line) 0 75%,transparent 0 calc(90% - 1px),var(--line) 0 90%,transparent 0),#16242f;overflow:hidden}
+.track i{display:block;height:100%;border-radius:2px;transition:width .4s}
+.bar-row b{font:500 12px var(--mono);text-align:right;font-variant-numeric:tabular-nums}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:right;padding:5px 0;border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{padding:7px 0;border-bottom:1px solid var(--line);text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.tbl td:first-child{font-family:var(--display)}
+.air{display:grid;grid-template-columns:1fr auto;margin:0}
+.air dt,.air dd{padding:6px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+.air dt{color:var(--muted)} .air dd{margin:0;text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.air .sub{grid-column:1/-1;padding:10px 0 2px;font:600 11px var(--display);letter-spacing:.08em;text-transform:uppercase;color:var(--accent);border:0}
+.log{list-style:none;margin:0;padding:0;max-height:240px;overflow:auto;font-size:12.5px}
+.log li{display:grid;grid-template-columns:64px 10px 1fr;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.log time{font:12px var(--mono);color:var(--muted);font-variant-numeric:tabular-nums}
+.log i{width:8px;height:8px;border-radius:50%;background:var(--stop)}
+.log .run i{background:var(--run)} .log .wait i{background:var(--high)} .log .alarm i{background:var(--hh)} .log .info i{background:var(--accent)}
+@media (max-width:700px){.dgrid{grid-template-columns:1fr}.card.wide{grid-column:auto}}
+.pill.done{color:var(--accent)}
+.pgrid{display:flex;flex-direction:column;gap:12px}
+.ptools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px;font-size:12.5px;color:var(--muted)}
+.ptools input{background:var(--panel-solid);border:1px solid var(--line);color:var(--fg);font:500 13px var(--mono);padding:5px 8px;border-radius:3px}
+.ptools .grow{flex:1}
+.ptable-wrap{overflow-x:auto}
+.ptable{width:100%;min-width:820px;border-collapse:collapse;font-size:12.5px}
+.ptable th{font:500 10.5px var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:left;padding:6px 8px 6px 0;border-bottom:1px solid var(--line);white-space:nowrap}
+.ptable td{padding:5px 8px 5px 0;border-bottom:1px solid var(--line);vertical-align:middle}
+.ptable input,.ptable select{width:100%;box-sizing:border-box;background:#0b141c;border:1px solid var(--line);color:var(--fg);font:13px var(--display);padding:5px 6px;border-radius:3px}
+.ptable input[type=number],.ptable input[type=time]{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.ptable input:focus,.ptable select:focus{outline:none;border-color:var(--accent)}
+.ptable input:disabled,.ptable select:disabled{opacity:.55}
+.ptable tr.active td{background:rgba(51,209,122,.07)}
+.ptable .muted{color:var(--muted);font-family:var(--mono);white-space:nowrap}
+.ptable .num{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.chk{font-size:12px;color:var(--muted);white-space:nowrap} .chk.warn{color:var(--high)} .chk.bad{color:var(--hh)}
+.del{all:unset;cursor:pointer;display:inline-grid;place-items:center;width:26px;height:26px;border:1px solid var(--line);border-radius:3px;color:var(--muted)}
+.del:hover{color:var(--hh);border-color:var(--hh)} .del:disabled{opacity:.3;cursor:default}
+.del:focus-visible{outline:2px solid var(--accent)}
+.lane{display:flex;flex-direction:column;gap:8px;min-height:150px}
+.lane-top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.lane-top strong{font:500 20px var(--mono);letter-spacing:.02em}
+.lane-sub,.lane-meta{font-size:12.5px;color:var(--muted)}
+.lane-meta b{color:var(--fg);font-weight:500;font-family:var(--mono)}
+.lane-empty{color:var(--muted);font-size:13px;line-height:1.6;padding-top:6px}
+.stepper{list-style:none;margin:4px 0 0;padding:0;display:flex;gap:4px}
+.stepper li{flex:1;min-width:0;font-size:11px;color:var(--muted);padding-top:7px;border-top:4px solid #16242f;line-height:1.3}
+.stepper li.done{border-top-color:var(--accent);color:var(--fg)}
+.stepper li.on{border-top-color:var(--run);color:var(--run);font-weight:600}
+.prog{height:6px;background:#16242f;border-radius:3px;overflow:hidden}
+.prog i{display:block;height:100%;background:var(--run);transition:width .4s}
+.tl-wrap{display:grid;grid-template-columns:64px 1fr;min-width:0}
+.tl-labels{display:flex;flex-direction:column;padding-top:24px;font-size:12px;color:var(--muted)}
+.tl-labels div{height:52px;display:flex;align-items:center}
+.tl-scroll{overflow-x:auto;min-width:0}
+.tl{position:relative;height:130px}
+.tl-tick{position:absolute;top:0;height:100%;border-left:1px solid var(--line);font:10.5px var(--mono);color:var(--muted);padding-left:4px;white-space:nowrap}
+.tl-row{position:absolute;left:0;right:0;height:52px;border-top:1px solid var(--line)}
+.tl-b{position:absolute;height:18px;border-radius:2px;font:10.5px/18px var(--mono);padding:0 4px;overflow:hidden;white-space:nowrap;box-sizing:border-box}
+.tl-plan{top:5px;border:1px solid var(--muted);color:var(--muted)}
+.tl-plan.late{border-color:var(--high);color:var(--high)}
+.tl-plan.hold{border-color:var(--hh);color:var(--hh)}
+.tl-act{top:28px;background:var(--run);color:#06220f}
+.tl-act.done{background:var(--accent);color:#06222a}
+.tl-now{position:absolute;top:0;bottom:0;border-left:2px solid var(--hh);z-index:2}
+.tl-now span{position:absolute;top:0;left:3px;font:500 10.5px var(--mono);color:var(--hh);background:var(--panel-solid);padding:0 3px}
+.mini{display:inline-block;width:70px;height:6px;background:#16242f;border-radius:3px;overflow:hidden;vertical-align:middle;margin-left:6px}
+.mini i{display:block;height:100%;background:var(--accent)}
+.hbtns{display:flex;gap:8px;flex-wrap:wrap}
+.btn:disabled{opacity:.45;cursor:default}
+.pmsg{margin:0 0 12px;padding:8px 12px;border:1px solid var(--high);border-radius:3px;color:var(--high);font-size:12.5px}
+.pastebox{width:100%;min-height:110px;box-sizing:border-box;background:#0b141c;color:var(--fg);border:1px solid var(--line);border-radius:3px;font:12.5px var(--mono);padding:8px;resize:vertical}
+.pastebox:focus{outline:none;border-color:var(--accent)}
+#pastePreview{margin-top:8px}
+#pastePreview .ptable{min-width:620px}
+#pastePreview td{padding:5px 8px 5px 0}
+#pastePreview tr.bad td{color:var(--hh)}
+#csvOut{width:100%;min-height:120px;box-sizing:border-box;background:#0b141c;color:var(--fg);border:1px solid var(--line);font:12px var(--mono);padding:8px;margin-top:8px}
+@media (max-width:820px){
+  .nav{left:0;right:0;top:0;width:auto;flex-direction:row;overflow-x:auto;border-radius:0;border-width:0 0 1px;padding:6px max(12px,env(safe-area-inset-right,0px)) 6px max(12px,env(safe-area-inset-left,0px));gap:4px}
+  .nav h3,.legend,.nav button small{display:none}
+  .nav button{white-space:nowrap;grid-template-columns:auto auto;flex:none}
+  .detail{top:auto;bottom:76px;left:max(12px,env(safe-area-inset-left,0px));right:max(12px,env(safe-area-inset-right,0px));width:auto;max-height:38%}
+  .detail.collapsed dl,.detail.collapsed .d-level,.detail.collapsed .d-hint{display:none}
+  .hint{display:none}
+  .controls{flex-wrap:wrap;gap:8px}
+  .feed{flex-basis:100%}
+  .tag{font-size:9.5px} .zlabel{font-size:10px}
+}
+@media (max-width:820px){.detail{bottom:170px}.dash{padding-bottom:200px}.speed{grid-template-columns:auto 1fr auto;flex-basis:100%}}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand"><h1>Cement Plant 3D</h1><span>ภาพรวมกระบวนการผลิตปูนซีเมนต์</span></div>
+    <div class="tabs" role="tablist" aria-label="มุมมอง">
+      <button type="button" role="tab" id="tab3d" class="on" aria-selected="true">3D</button>
+      <button type="button" role="tab" id="tabDash" aria-selected="false">Dashboard</button>
+      <button type="button" role="tab" id="tabTrans" aria-selected="false">ขนส่งเรียลไทม์</button>
+      <button type="button" role="tab" id="tabPlan" aria-selected="false">แผนขนส่ง</button>
+    </div>
+    <div class="hdr-right"><span id="plantState" class="pill run">RUN</span><span id="clock">--</span></div>
+  </header>
+  <div class="stage" id="stage">
+    <canvas id="c" tabindex="0" aria-label="แบบจำลอง 3 มิติของโรงงานปูนซีเมนต์"></canvas>
+    <div id="labels"></div>
+    <nav class="panel nav" id="nav" aria-label="พื้นที่ในโรงงาน">
+      <h3>Process area</h3>
+      <div class="legend" id="legend">
+        <span style="--c:var(--hh)">High high</span><span style="--c:var(--high)">High</span><span style="--c:var(--run)">Normal</span><span style="--c:var(--low)">Low</span>
+      </div>
+    </nav>
+    <aside class="panel detail" id="detail" aria-live="polite">
+      <div class="d-head"><span class="d-zone" id="dZone"></span><span class="pill run" id="dStatus">RUN</span></div>
+      <h2 id="dTitle"></h2>
+      <dl id="dRows"></dl>
+      <div class="d-level" id="dLevel" hidden>
+        <label for="lvl">ปรับระดับในไซโล (จำลอง) <span id="lvlVal"></span></label>
+        <input type="range" id="lvl" min="0" max="100" step="1">
+      </div>
+      <p class="d-hint" id="dHint"></p>
+      <div class="d-actions" id="dActions"></div>
+    </aside>
+    <div class="hint">ลากเพื่อหมุน · คลิกขวาลากเพื่อเลื่อน · ล้อเมาส์เพื่อซูม · คลิกอุปกรณ์เพื่อดูค่า</div>
+    <section class="dash" id="dash" hidden aria-label="Dashboard">
+      <div class="kpis" id="kpis"></div>
+      <div class="dgrid">
+        <article class="card wide"><header><h3>Cement mill motor</h3><span><span class="key" style="--k:var(--accent)">Motor current (A)</span> · 2 นาทีล่าสุด</span></header><canvas id="chCur"></canvas></article>
+        <article class="card"><header><h3>Mill temperature</h3><span><span class="key" style="--k:var(--accent)">Mill</span><span class="key" style="--k:var(--c2)">Bearing</span> °C</span></header><canvas id="chTemp"></canvas></article>
+        <article class="card"><header><h3>Cement stock</h3><span>รวม 4 ไซโล (t)</span></header><canvas id="chStock"></canvas></article>
+        <article class="card"><header><h3>Raw material silos</h3><span>ระดับ %</span></header><div class="bars" id="rawBars"></div></article>
+        <article class="card"><header><h3>Cement silos</h3><span>ระดับ % · น้ำหนัก t</span></header><div class="bars" id="cemBars"></div></article>
+        <article class="card"><header><h3>Weigh feeders</h3><span>Proportioning</span></header><table class="tbl" id="wfTable"></table></article>
+        <article class="card"><header><h3>Air &amp; separation</h3><span>ID fan · Bag filter · Separator</span></header><dl class="air" id="airDl"></dl></article>
+        <article class="card wide"><header><h3>Event log</h3><span>เหตุการณ์และ alarm ล่าสุด</span></header><ol class="log" id="log"></ol></article>
+      </div>
+    </section>
+    <section class="dash" id="trans" hidden aria-label="แดชบอร์ดขนส่งเรียลไทม์">
+      <div class="kpis" id="tKpis"></div>
+      <div class="dgrid">
+        <article class="card"><header><h3>จุดรับวัตถุดิบ</h3><span>Receiving hopper</span></header><div class="lane" id="tRecv"></div></article>
+        <article class="card"><header><h3>จุดจ่ายปูน</h3><span>Weighbridge → Loading spout</span></header><div class="lane" id="tLoad"></div></article>
+        <article class="card wide"><header><h3>ไทม์ไลน์รถวันนี้</h3><span><span class="key" style="--k:var(--muted)">ตามแผน (บน)</span><span class="key" style="--k:var(--run)">เกิดขึ้นจริง (ล่าง)</span><span class="key" style="--k:var(--hh)">เวลาปัจจุบัน</span></span></header><div class="tl-wrap" id="tTimeline"></div></article>
+        <article class="card wide"><header><h3>ปริมาณสะสม (ตัน)</h3><span><span class="key" style="--k:var(--accent)">รับเข้าจริง</span><span class="key" style="--k:var(--c2)">จ่ายออกจริง</span> เส้นประ = ตามแผน</span></header><canvas id="tCum"></canvas></article>
+        <article class="card"><header><h3>คิวถัดไป</h3><span>รถที่ยังไม่เข้าโรงงาน</span></header><div class="ptable-wrap"><table class="tbl" id="tQueue"></table></div></article>
+        <article class="card"><header><h3>สรุปตามลูกค้า</h3><span>ปูนที่จ่ายแล้วเทียบกับแผน</span></header><div class="ptable-wrap"><table class="tbl" id="tCust"></table></div></article>
+      </div>
+    </section>
+    <section class="dash" id="plan" hidden aria-label="แผนขนส่ง">
+      <div class="kpis" id="planKpis"></div>
+      <div class="ptools">
+        <label for="simTime">เวลาจำลอง</label><input type="time" id="simTime">
+        <button class="btn" type="button" id="skipBtn">ข้ามไปคิวถัดไป</button>
+        <span>1 วินาทีจริง = 1 นาทีในแผน · รถเริ่มงานเมื่อถึงเวลาในตาราง</span>
+        <span class="grow"></span>
+        <span id="syncBadge" class="pill stop" title="">แผนในเครื่องนี้</span>
+        <button class="btn" type="button" id="copyCsv">คัดลอกเป็น CSV</button>
+        <button class="btn" type="button" id="clearDone">ลบรายการที่เสร็จแล้ว</button>
+        <button class="btn" type="button" id="resetPlan">โหลดแผนตัวอย่าง</button>
+      </div>
+      <textarea id="csvOut" hidden readonly aria-label="CSV ของแผนขนส่ง"></textarea>
+      <p class="pmsg" id="planMsg" hidden></p>
+      <div class="pgrid">
+        <article class="card" id="sharedEmpty" hidden>
+          <header><h3>ยังไม่มีแผนส่วนกลาง</h3><span>ทุกคนที่เปิดลิงก์นี้จะเห็นและแก้ตารางเดียวกัน</span></header>
+          <p class="d-hint" id="sharedEmptyText">เริ่มจากแผนที่มีในเครื่องนี้ หรือใช้แผนตัวอย่างแล้วแก้ทับ หรือกด "+ เพิ่มรถ" / "วางจาก Excel" ด้านล่าง</p>
+          <div class="d-actions" id="sharedEmptyActions">
+            <button class="btn primary" type="button" id="seedLocal">ใช้แผนจากเครื่องนี้</button>
+            <button class="btn" type="button" id="seedExample">เริ่มจากแผนตัวอย่าง</button>
+          </div>
+        </article>
+        <article class="card" id="pastePanel" hidden>
+          <header><h3 id="pasteTitle">วางจาก Excel</h3><span id="pasteCols"></span></header>
+          <textarea id="pasteBox" class="pastebox" placeholder="คัดลอกแถวจาก Excel (Ctrl+C) แล้ววางที่นี่ (Ctrl+V)" aria-label="ข้อมูลที่วางจาก Excel"></textarea>
+          <div id="pastePreview" class="ptable-wrap"></div>
+          <div class="d-actions">
+            <button class="btn primary" type="button" id="pasteAdd" disabled>เพิ่มรายการ</button>
+            <button class="btn" type="button" id="pasteCancel">ปิด</button>
+          </div>
+        </article>
+        <article class="card">
+          <header><h3>รถรับวัตถุดิบ (Inbound)</h3><span>เข้า Receiving hopper → ไซโลตามชนิดวัตถุดิบ</span><span class="hbtns"><button class="btn" type="button" id="pasteIn">วางจาก Excel</button><button class="btn primary" type="button" id="addIn">+ เพิ่มรถรับวัตถุดิบ</button></span></header>
+          <div class="ptable-wrap"><table class="ptable"><thead><tr><th style="width:96px">เวลา</th><th>ทะเบียนรถ</th><th style="width:130px">วัตถุดิบ</th><th style="width:96px">น้ำหนัก (t)</th><th>ไซโล</th><th>สถานะ</th><th>ตรวจแผน</th><th></th></tr></thead><tbody id="inBody"></tbody></table></div>
+        </article>
+        <article class="card">
+          <header><h3>รถจ่ายปูน (Outbound)</h3><span>เครื่องชั่ง → จุดโหลด → ออกโรงงาน</span><span class="hbtns"><button class="btn" type="button" id="pasteOut">วางจาก Excel</button><button class="btn primary" type="button" id="addOut">+ เพิ่มรถจ่ายปูน</button></span></header>
+          <div class="ptable-wrap"><table class="ptable"><thead><tr><th style="width:96px">เวลา</th><th>ทะเบียนรถ</th><th>ลูกค้า / ปลายทาง</th><th style="width:96px">ปริมาณ (t)</th><th style="width:120px">ไซโลต้นทาง</th><th>สถานะ</th><th>ตรวจแผน</th><th></th></tr></thead><tbody id="outBody"></tbody></table></div>
+        </article>
+        <article class="card">
+          <header><h3>คาดการณ์สต็อกตามแผน</h3><span>คิดจากรายการที่ยังไม่เสร็จทั้งหมด</span></header>
+          <div class="ptable-wrap"><table class="tbl" id="projTable"></table></div>
+        </article>
+      </div>
+    </section>
+    <div class="panel controls">
+      <div class="feed">
+        <label for="feed">Mill feed</label>
+        <input type="range" id="feed" min="0" max="100" value="72">
+        <output id="feedOut" for="feed">72%</output>
+      </div>
+      <div class="simbtns" role="group" aria-label="ควบคุมการจำลอง">
+        <button class="sbtn" type="button" id="simReset" title="รีเซ็ตการจำลองกลับจุดเริ่มต้น"><svg viewBox="0 0 16 16" aria-hidden="true"><rect class="i-blue" x="1.5" y="3" width="2" height="10"/><path class="i-blue" d="M9.5 3 4.5 8l5 5zM15 3l-5 5 5 5z"/></svg>Reset</button>
+        <button class="sbtn on" type="button" id="simRun" title="เดินการจำลอง"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="i-run" d="M4 2.5v11L13.5 8z"/></svg>Run</button>
+        <button class="sbtn" type="button" id="simStop" title="หยุดการจำลอง"><svg viewBox="0 0 16 16" aria-hidden="true"><rect class="i-stop" x="3" y="3" width="10" height="10" rx="1"/></svg>Stop</button>
+        <button class="sbtn" type="button" id="simStep" title="เดินทีละ 1 นาทีในแผน"><svg viewBox="0 0 16 16" aria-hidden="true"><path class="i-blue" d="M3 2.5v11L11 8z"/><rect class="i-blue" x="11.5" y="3" width="2" height="10"/></svg>Step</button>
+      </div>
+      <div class="speed">
+        <label for="speed">Run Speed</label>
+        <input type="range" id="speed" min="0" max="100" step="any" value="31.64">
+        <output id="speedOut" for="speed">1.00</output>
+      </div>
+      <button class="btn" type="button" id="labelBtn">ซ่อนป้าย</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const stage=$('#stage'), canvas=$('#c'), labelLayer=$('#labels');
+
+/* ---------- simulation state ---------- */
+const S={
+  feed:72, paused:false, labels:true, sel:'plant', fly:null, fan:1, mill:1,
+  raw:[
+    {code:'SILO-01',name:'Clinker',lv:58,cap:3000,base:85,color:0x6b5446},
+    {code:'SILO-02',name:'Gypsum',lv:60,cap:800,base:5,color:0xe4ddc8},
+    {code:'SILO-03',name:'Limestone',lv:45,cap:1500,base:8,color:0xb3aa8c},
+    {code:'SILO-04',name:'Additive',lv:30,cap:600,base:2,color:0x7f8a6e}],
+  wfTotal:[12568,1456,2210,640],
+  cem:[{code:'SILO-05',lv:65},{code:'SILO-06',lv:50},{code:'SILO-07',lv:35},{code:'SILO-08',lv:20}],
+  cemCap:2500, fillIdx:3, drawIdx:0,
+  simMin:7*60+55,
+  recv:{phase:'idle',t:1,cargo:0,count:0,tons:0,row:null},
+  load:{phase:'idle',t:1,loaded:0,count:0,tons:0,tare:14.6,row:null,src:0},
+  m:{cur:125.4,pow:920,bt:68.5,mt:95.2,vib:2.8,fanSp:86,fanCur:56.3,air:125600,pr:-1250,dp:850,sepRpm:1150,sepCur:38.2,clean:0}
+};
+const ff=()=>S.feed/72;
+S.speed=1; S.stepLeft=0;
+const simOn=()=>!S.paused||S.stepLeft>0;
+const running=()=>simOn()&&S.feed>0;
+const INIT=JSON.parse(JSON.stringify({raw:S.raw.map(r=>r.lv),cem:S.cem.map(c=>c.lv),wf:S.wfTotal,m:S.m}));
+const n=a=>(Math.random()-.5)*2*a;
+const lvClass=l=>l>=90?'hh':l>=75?'high':l>=25?'normal':'low';
+const LVC={hh:0xef4f4f,high:0xf2a33a,normal:0x33d17a,low:0x4b8df2};
+const LVTXT={hh:'HIGH HIGH',high:'HIGH',normal:'NORMAL',low:'LOW'};
+
+/* ---------- renderer / scene ---------- */
+const renderer=new THREE.WebGLRenderer({canvas,antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+renderer.outputEncoding=THREE.sRGBEncoding;
+const scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0a1118);
+scene.fog=new THREE.Fog(0x0a1118,120,260);
+const camera=new THREE.PerspectiveCamera(42,1,.5,600);
+const HOME={pos:new THREE.Vector3(6,60,86),tgt:new THREE.Vector3(-2,2,0)};
+camera.position.copy(HOME.pos);
+const controls=new THREE.OrbitControls(camera,canvas);
+controls.target.copy(HOME.tgt); controls.enableDamping=true; controls.dampingFactor=.08;
+controls.maxPolarAngle=1.45; controls.minDistance=10; controls.maxDistance=200;
+
+scene.add(new THREE.HemisphereLight(0xbcd6ea,0x1b2530,.8));
+const sun=new THREE.DirectionalLight(0xfff1dc,1.05);
+sun.position.set(-40,80,50); sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+Object.assign(sun.shadow.camera,{left:-90,right:90,top:60,bottom:-60,far:220}); sun.shadow.bias=-.0005;
+scene.add(sun);
+const fill=new THREE.DirectionalLight(0x6fa8c8,.35); fill.position.set(60,30,-40); scene.add(fill);
+
+const std=(c,m=.2,r=.6,extra)=>new THREE.MeshStandardMaterial(Object.assign({color:c,metalness:m,roughness:r},extra||{}));
+const M={
+  steel:std(0xc6ced6,.55,.36), steelDark:std(0x6c7884,.5,.45), frame:std(0x3d4d5d,.4,.6),
+  motor:std(0x2f6f8f,.4,.45), concrete:std(0x3a4652,0,.9), belt:std(0x1a2128,.1,.9),
+  rubber:std(0x121518,0,.85), cab:std(0xe0b23a,.2,.5), glass:std(0x1d2c38,.6,.2),
+  tank:std(0xd9dee3,.6,.3), gaugeBack:std(0x0d151c,0,.8), bag:std(0x8a96a2,.3,.5),
+  pipe:std(0xa9bccb,.3,.25,{transparent:true,opacity:.26,depthWrite:false}),
+  pipeSolid:std(0x8d9ba8,.5,.4)
+};
+function mesh(geo,mat,x,y,z,parent){const m=new THREE.Mesh(geo,mat);m.position.set(x||0,y||0,z||0);m.castShadow=true;m.receiveShadow=true;(parent||scene).add(m);return m;}
+const V=(x,y,z)=>new THREE.Vector3(x,y,z);
+const UP=V(0,1,0);
+function beam(a,b,r,mat,parent){const d=b.clone().sub(a),L=d.length();const m=mesh(new THREE.CylinderGeometry(r,r,L,14),mat,0,0,0,parent);m.position.copy(a).addScaledVector(d,.5);m.quaternion.setFromUnitVectors(UP,d.normalize());return m;}
+
+/* ---------- ground, roads, zone pads ---------- */
+const ground=mesh(new THREE.PlaneGeometry(320,220),std(0x111b24,0,.95),0,0,0); ground.rotation.x=-Math.PI/2; ground.castShadow=false;
+const grid=new THREE.GridHelper(320,80,0x1b2a37,0x16232e); grid.position.y=.01; scene.add(grid);
+const road=std(0x1a242d,0,.95);
+mesh(new THREE.BoxGeometry(46,.04,5),road,-66,.02,-12).castShadow=false;
+mesh(new THREE.BoxGeometry(5,.04,80),road,44,.02,0).castShadow=false;
+
+const ZONES=[
+  {n:'01',name:'Raw material receiving',th:'รับวัตถุดิบ',box:[-60,-20,-24,-4]},
+  {n:'02',name:'Raw material storage',th:'ไซโลเก็บวัตถุดิบ',box:[-24,-20,1.5,-4]},
+  {n:'03',name:'Feeding / proportioning',th:'ป้อนและชั่งสัดส่วน',box:[1.5,-20,30,-4]},
+  {n:'04',name:'Cement grinding',th:'บดปูนซีเมนต์',box:[-42,5,16,19]},
+  {n:'05',name:'Cement storage',th:'ไซโลเก็บปูน',box:[16,5,41,14.6]},
+  {n:'06',name:'Cement dispatch',th:'ลำเลียงจ่ายปูน',box:[16,14.6,41,18]},
+  {n:'07',name:'Weighing system',th:'ระบบชั่งรถ',box:[41.2,-13,47.5,-.5]},
+  {n:'08',name:'Truck loading',th:'โหลดปูนขึ้นรถ',box:[41.2,-.5,47.5,12]}
+];
+const padLine=new THREE.LineBasicMaterial({color:0x2c4a60});
+ZONES.forEach(z=>{
+  const [x0,z0,x1,z1]=z.box;
+  const g=new THREE.BufferGeometry().setFromPoints([V(x0,.04,z0),V(x1,.04,z0),V(x1,.04,z1),V(x0,.04,z1),V(x0,.04,z0)]);
+  scene.add(new THREE.Line(g,padLine));
+  z.center=V((x0+x1)/2,2,(z0+z1)/2); z.size=Math.max(x1-x0,z1-z0);
+});
+
+/* ---------- builders ---------- */
+const pickables=[];
+function reg(key,obj){obj.traverse(o=>o.userData.key=key);pickables.push(obj);DEF[key].obj=obj;}
+
+function silo(o){
+  const g=new THREE.Group(); g.position.set(o.x,0,o.z); scene.add(g);
+  const {r,h,leg,cone}=o, y0=leg+cone;
+  mesh(new THREE.CylinderGeometry(r,r,h,40),M.steel,0,y0+h/2,0,g);
+  mesh(new THREE.ConeGeometry(r,cone,40),M.steel,0,leg+cone/2,0,g).rotation.x=Math.PI;
+  mesh(new THREE.ConeGeometry(r*1.03,r*.45,40),M.steelDark,0,y0+h+r*.225,0,g);
+  for(let i=1;i<4;i++) mesh(new THREE.TorusGeometry(r+.03,.05,6,48),M.steelDark,0,y0+h*i/4,0,g).rotation.x=Math.PI/2;
+  for(let i=0;i<4;i++){const a=Math.PI/4+i*Math.PI/2;mesh(new THREE.BoxGeometry(.28,y0+.3,.28),M.frame,Math.cos(a)*r*.82,(y0+.3)/2,Math.sin(a)*r*.82,g);}
+  mesh(new THREE.CylinderGeometry(.32,.32,.6,16),M.motor,.55,leg-.25,0,g).rotation.z=Math.PI/2;
+  const gh=h*.78, gy=y0+h*.5;
+  mesh(new THREE.BoxGeometry(.72,gh+.2,.1),M.gaugeBack,0,gy,r+.04,g);
+  const fm=std(0x33d17a,0,.5,{emissive:0x33d17a,emissiveIntensity:.6});
+  const fillBar=mesh(new THREE.BoxGeometry(.5,1,.12),fm,0,gy,r+.07,g); fillBar.castShadow=false;
+  let last=null;
+  const set=lv=>{const hh=Math.max(.03,gh*lv/100);fillBar.scale.y=hh;fillBar.position.y=gy-gh/2+hh/2;const c=lvClass(lv);if(c!==last){fm.color.setHex(LVC[c]);fm.emissive.setHex(LVC[c]);last=c;}};
+  return {g,set,top:y0+h+r*.45};
+}
+function elevator(x,z,h){
+  const g=new THREE.Group(); g.position.set(x,0,z); scene.add(g);
+  mesh(new THREE.BoxGeometry(.3,h,.9),M.frame,-.55,h/2,0,g); mesh(new THREE.BoxGeometry(.3,h,.9),M.frame,.55,h/2,0,g);
+  mesh(new THREE.BoxGeometry(1.8,1.3,1.4),M.steelDark,0,h+.45,0,g);
+  mesh(new THREE.BoxGeometry(1.8,1,1.4),M.steelDark,0,.5,0,g);
+  mesh(new THREE.BoxGeometry(.6,.6,.6),M.motor,1.2,h+.45,0,g);
+  for(let y=3;y<h;y+=3) mesh(new THREE.BoxGeometry(1.5,.12,1),M.frame,0,y,0,g);
+  return g;
+}
+const flows=[];
+const beltItemGeo=new THREE.BoxGeometry(.55,.28,.55), dotGeo=new THREE.SphereGeometry(.2,10,8);
+function flow(pts,o){
+  pts=pts.map(p=>V(...p));
+  const path=new THREE.CurvePath(); for(let i=0;i<pts.length-1;i++) path.add(new THREE.LineCurve3(pts[i],pts[i+1]));
+  const len=path.getLength(), g=new THREE.Group(); scene.add(g);
+  if(o.kind==='belt'){
+    for(let i=0;i<pts.length-1;i++){
+      const a=pts[i],b=pts[i+1],L=a.distanceTo(b);
+      const s=mesh(new THREE.BoxGeometry(1.3,.2,L+1.3),M.belt,0,0,0,g); s.position.copy(a).lerp(b,.5); s.lookAt(b);
+      const steps=Math.floor(L/4);
+      for(let k=0;k<=steps;k++){const p=a.clone().lerp(b,steps?k/steps:.5);mesh(new THREE.BoxGeometry(.18,p.y,.18),M.frame,p.x,p.y/2,p.z,g);}
+    }
+  } else if(o.kind==='pipe'){
+    for(let i=0;i<pts.length-1;i++){const m=beam(pts[i],pts[i+1],.38,M.pipe,g);m.castShadow=false;}
+    pts.forEach(p=>mesh(new THREE.SphereGeometry(.42,12,10),M.pipeSolid,p.x,p.y,p.z,g));
+  }
+  const mat=o.kind==='pipe'?std(o.color,0,.4,{emissive:o.color,emissiveIntensity:.7}):std(o.color,0,.85);
+  const geo=o.kind==='pipe'?dotGeo:beltItemGeo, items=[];
+  const cnt=o.count||Math.max(4,Math.round(len/(o.kind==='pipe'?1.6:2.2)));
+  for(let i=0;i<cnt;i++){const m=new THREE.Mesh(geo,mat);m.castShadow=o.kind!=='pipe';scene.add(m);items.push(m);}
+  const f={g,path,len,items,t:0,speed:o.speed||3,gate:o.gate,mat,lift:o.kind==='belt'?.24:0,shown:true};
+  flows.push(f); return f;
+}
+
+/* ---------- definitions for selectable items (filled in below) ---------- */
+const DEF={};
+const st=(on,wait)=>on?['RUN','run']:wait?['WAIT','wait']:['STOP','stop'];
+
+/* ===== Zone 01: receiving ===== */
+const hop=new THREE.Group(); hop.position.set(-41.5,0,-12); scene.add(hop);
+mesh(new THREE.ConeGeometry(2.7,2.6,4),M.steel,0,2.5,0,hop).rotation.set(Math.PI,Math.PI/4,0);
+mesh(new THREE.BoxGeometry(3.9,.18,3.9),M.frame,0,3.85,0,hop);
+for(let i=-1;i<=1;i+=2)for(let j=-1;j<=1;j+=2) mesh(new THREE.BoxGeometry(.25,3.8,.25),M.frame,i*1.7,1.9,j*1.7,hop);
+mesh(new THREE.BoxGeometry(1.4,.6,1.2),M.steelDark,0,.9,0,hop);
+const beacon=new THREE.Group(); beacon.position.set(-35,0,-7.5); scene.add(beacon);
+mesh(new THREE.CylinderGeometry(.08,.08,3,8),M.frame,0,1.5,0,beacon);
+const beaconMat=std(0x5a1414,0,.4,{emissive:0xff2a2a,emissiveIntensity:0});
+mesh(new THREE.SphereGeometry(.45,16,12),beaconMat,0,3.2,0,beacon);
+const beaconLight=new THREE.PointLight(0xff3030,0,14); beaconLight.position.set(0,3.4,0); beacon.add(beaconLight);
+
+function dumpTruck(){
+  const g=new THREE.Group(); scene.add(g);
+  mesh(new THREE.BoxGeometry(8.2,.5,2.2),M.frame,0,.95,0,g);
+  mesh(new THREE.BoxGeometry(2,2.1,2.4),M.cab,-3.1,2.1,0,g);
+  mesh(new THREE.BoxGeometry(.1,.9,2.1),M.glass,-4.12,2.55,0,g);
+  [-3,.9,2.6].forEach(x=>[-1.15,1.15].forEach(z=>mesh(new THREE.CylinderGeometry(.55,.55,.45,16),M.rubber,x,.55,z,g).rotation.x=Math.PI/2));
+  const piv=new THREE.Group(); piv.position.set(3.9,1.25,0); g.add(piv);
+  mesh(new THREE.BoxGeometry(5.6,1.5,2.5),M.cab,-2.8,.75,0,piv);
+  const loadMat=std(0x6b5446,0,.95); const load=mesh(new THREE.BoxGeometry(5.2,.5,2.2),loadMat,-2.8,1.6,0,piv);
+  return {g,piv,load,loadMat};
+}
+const rTruck=dumpTruck();
+
+DEF.recv={title:'Receiving hopper',zone:'01 Raw material receiving',
+  status:()=>S.recv.phase==='hold'?['HOLD','alarm']:st(S.recv.phase==='dump'),
+  rows:()=>{const r=S.recv.row;return [['สถานะรถบรรทุก',{idle:'ไม่มีรถในคิว',approach:'กำลังถอยเข้า',dump:'กำลังเท',leave:'ออกจากจุดรับ',gap:'รอคันถัดไป',hold:'รอ – ไซโลเต็ม'}[S.recv.phase]],
+    ['ทะเบียนรถ',r?r.plate:'–'],['วัตถุดิบในรถ',r?S.raw[r.mat].name:'–'],['ส่งเข้าไซโล',r?S.raw[r.mat].code:'–'],['น้ำหนักบรรทุก',r?(+r.t).toFixed(1)+' t':'–'],['รับเข้าแล้ว',S.recv.count+' คัน · '+S.recv.tons.toFixed(0)+' t']];},
+  hint:'รถรับวัตถุดิบทำงานตามคิวในแท็บ "แผนขนส่ง" และจะรอถ้าไซโลปลายทางจะเกิน 95%'};
+reg('recv',rTruck.g); reg('recv',hop);
+const recvActive=()=>simOn()&&(S.recv.phase==='dump'||(S.recv.phase==='leave'&&S.recv.t<4));
+const fRecvBelt=flow([[-41.5,.6,-12],[-28.2,.6,-12]],{kind:'belt',color:0x6b5446,speed:3,gate:()=>recvActive()?1:0});
+const elev1=elevator(-27,-12,16);
+const fElev1=flow([[-27,.9,-12],[-27,16,-12]],{kind:'none',color:0x6b5446,speed:3.5,count:9,gate:()=>recvActive()?1:0});
+const fHdr1=flow([[-27,16.9,-12],[-2,16.9,-12]],{kind:'pipe',color:0xd9a066,speed:6,gate:()=>recvActive()?1:0});
+DEF.belt1={title:'Belt conveyor-01',zone:'01 Raw material receiving',status:()=>st(recvActive()),
+  rows:()=>[['ความเร็วสายพาน',recvActive()?'1.60 m/s':'0.00 m/s'],['อัตราลำเลียง',recvActive()?'280 t/h':'0 t/h'],['กระแสมอเตอร์',recvActive()?(22+n(.6)).toFixed(1)+' A':'0.0 A']]};
+reg('belt1',fRecvBelt.g);
+DEF.elev1={title:'Bucket elevator-01',zone:'01 Raw material receiving',status:()=>st(recvActive()),
+  rows:()=>[['ความสูงยก','16.0 m'],['กระแสมอเตอร์',recvActive()?(31+n(.8)).toFixed(1)+' A':'0.0 A'],['ปลายทาง',S.raw[S.recv.cargo].code]]};
+reg('elev1',elev1);
+
+/* ===== Zone 02: raw silos ===== */
+const rawSilos=S.raw.map((r,i)=>{
+  const s=silo({x:-20+i*6,z:-12,r:2.2,h:8,leg:2.5,cone:2.5});
+  beam(V(-20+i*6,16.9,-12),V(-20+i*6,s.top,-12),.22,M.pipeSolid,scene);
+  const key='silo'+i;
+  DEF[key]={title:`${r.code} ${r.name}`,zone:'02 Raw material storage',level:{get:()=>S.raw[i].lv,set:v=>S.raw[i].lv=v},
+    status:()=>{const c=lvClass(r.lv);return c==='hh'?['HIGH HIGH','alarm']:c==='high'?['HIGH','wait']:c==='low'?['LOW','wait']:['NORMAL','run'];},
+    rows:()=>[['วัตถุดิบ',r.name],['ระดับ',r.lv.toFixed(1)+' %'],['ปริมาณคงคลัง',Math.round(r.lv/100*r.cap).toLocaleString()+' t'],['ความจุ',r.cap.toLocaleString()+' t'],['อัตราจ่ายออก',(running()?r.base*ff():0).toFixed(1)+' t/h']]};
+  reg(key,s.g); return s;
+});
+const fRaw=flow([[-20,.6,-12],[2.8,.6,-12]],{kind:'belt',color:0x8d7d6a,speed:3,gate:()=>running()?Math.min(1.6,ff()):0});
+
+/* ===== Zone 03: feeders ===== */
+const elev3=elevator(4,-12,12.2);
+const fElev3=flow([[4,.9,-12],[4,12.2,-12]],{kind:'none',color:0x8d7d6a,speed:3.5,count:8,gate:()=>running()?Math.min(1.6,ff()):0});
+const fHdr3=flow([[4,13,-12],[21.5,13,-12]],{kind:'pipe',color:0xd9a066,speed:6,gate:()=>running()?Math.min(1.6,ff()):0});
+const feeders=S.raw.map((r,i)=>{
+  const x=8+i*4.5, s=silo({x,z:-12,r:1.55,h:4,leg:3.6,cone:1.6});
+  beam(V(x,13,-12),V(x,s.top,-12),.18,M.pipeSolid,scene);
+  const wf=new THREE.Group(); wf.position.set(x,0,-12); scene.add(wf);
+  mesh(new THREE.BoxGeometry(2.6,.55,1.3),M.steelDark,0,2.2,0,wf);
+  mesh(new THREE.BoxGeometry(2.3,.1,1.05),M.belt,0,2.52,0,wf);
+  mesh(new THREE.BoxGeometry(.5,.5,.5),M.motor,1.55,2.2,.4,wf);
+  const key='wf'+i;
+  DEF[key]={title:`Weigh feeder WF-0${i+1}`,zone:'03 Feeding / proportioning',status:()=>st(running()),
+    rows:()=>{const rate=running()?r.base*ff():0;return [['วัตถุดิบ',r.name],['Setpoint',(r.base*ff()).toFixed(1)+' t/h'],['อัตราจริง',(rate?rate+n(rate*.006):0).toFixed(1)+' t/h'],['Totalizer',Math.floor(S.wfTotal[i]).toLocaleString()+' t'],['สัดส่วนผสม',(r.base/100*100).toFixed(0)+' %']];}};
+  reg(key,wf); reg(key,s.g); return s;
+});
+feeders.forEach(s=>s.set(70));
+const fCollect=flow([[7,.6,-12],[28,.6,-12],[28,.6,2],[-38,.6,2],[-38,.6,11.2]],{kind:'belt',color:0x8d7d6a,speed:3.2,gate:()=>running()?Math.min(1.6,ff()):0});
+DEF.collect={title:'Mill feed conveyor',zone:'04 Cement grinding',status:()=>st(running()),
+  rows:()=>[['อัตราป้อน',(running()?100*ff():0).toFixed(1)+' t/h'],['ความยาว','107 m'],['ความเร็ว',running()?'1.80 m/s':'0.00 m/s']]};
+reg('collect',fCollect.g);
+
+/* ===== Zone 04: grinding ===== */
+const elev2=elevator(-38,12,10.4);
+const millGate=()=>running()?Math.min(1.6,ff()):0;
+const fElev2=flow([[-38,.9,12],[-38,10.4,12]],{kind:'none',color:0x8d7d6a,speed:3.5,count:7,gate:millGate});
+const fChute=flow([[-38,11.1,12],[-33.6,11.1,12],[-33.6,3.4,12],[-31.8,3.4,12]],{kind:'pipe',color:0xd9a066,speed:5,gate:millGate});
+DEF.elev2={title:'Bucket elevator-02',zone:'04 Cement grinding',status:()=>st(running()),
+  rows:()=>[['ความสูงยก','10.4 m'],['กระแสมอเตอร์',running()?(27+n(.6)).toFixed(1)+' A':'0.0 A']]};
+reg('elev2',elev2);
+
+const millG=new THREE.Group(); millG.position.set(-24.5,3.4,12); scene.add(millG);
+const shell=new THREE.Group(); millG.add(shell);
+mesh(new THREE.CylinderGeometry(2.4,2.4,12,48),M.steel,0,0,0,shell).rotation.z=Math.PI/2;
+[-4.5,-1.5,1.5].forEach(x=>{const t=mesh(new THREE.TorusGeometry(2.43,.07,6,56),M.steelDark,x,0,0,shell);t.rotation.y=Math.PI/2;});
+const gear=mesh(new THREE.TorusGeometry(2.62,.26,8,64),std(0x3b4a57,.6,.35),3.6,0,0,shell); gear.rotation.y=Math.PI/2;
+for(let k=0;k<6;k++){const a=k*Math.PI/3;const s=mesh(new THREE.BoxGeometry(11.6,.1,.35),M.steelDark,0,Math.cos(a)*2.42,Math.sin(a)*2.42,shell);s.rotation.x=-a;}
+[-6.6,6.6].forEach(x=>{mesh(new THREE.CylinderGeometry(1.1,1.1,1.4,24),M.steelDark,x,0,0,millG).rotation.z=Math.PI/2;mesh(new THREE.BoxGeometry(2.2,2.4,3.4),M.concrete,x,-2.2,0,millG);});
+mesh(new THREE.BoxGeometry(2.4,1.6,1.6),M.motor,3.6,-1.6,4,millG);
+mesh(new THREE.BoxGeometry(1.4,1.2,1.4),M.steelDark,3.6,-1.8,2.9,millG);
+mesh(new THREE.BoxGeometry(3,.6,2.6),M.concrete,3.6,-3.1,3.4,millG);
+DEF.mill={title:'Cement mill',zone:'04 Cement grinding',status:()=>st(running()),
+  rows:()=>[['Motor current',S.m.cur.toFixed(1)+' A'],['Motor power',Math.round(S.m.pow)+' kW'],['Bearing temp',S.m.bt.toFixed(1)+' °C'],['Mill temp',S.m.mt.toFixed(1)+' °C'],['Vibration',S.m.vib.toFixed(1)+' mm/s'],['Speed',running()?'15.6 rpm':'0.0 rpm'],['Output',(running()?100*ff():0).toFixed(1)+' t/h']],
+  hint:'ปรับ Mill feed ที่แถบด้านล่าง ค่ากระแส กำลังไฟ และอุณหภูมิจะเปลี่ยนตาม'};
+reg('mill',millG);
+
+const fOut=flow([[-17,3.4,12],[-13,3.4,12],[-13,12.4,12],[-8,12.4,12],[-8,10.9,12]],{kind:'pipe',color:0xcfd6dd,speed:5,gate:millGate});
+const sep=new THREE.Group(); sep.position.set(-8,0,12); scene.add(sep);
+mesh(new THREE.ConeGeometry(2,2.6,32),M.steel,0,6.3,0,sep).rotation.x=Math.PI;
+mesh(new THREE.CylinderGeometry(2,2,2.8,32),M.steel,0,9,0,sep);
+mesh(new THREE.CylinderGeometry(2.1,2.1,.25,32),M.steelDark,0,10.45,0,sep);
+const sepHub=new THREE.Group(); sepHub.position.y=10.9; sep.add(sepHub);
+mesh(new THREE.CylinderGeometry(.6,.6,1,16),M.motor,0,.3,0,sepHub);
+for(let k=0;k<4;k++){const b=mesh(new THREE.BoxGeometry(2.6,.08,.25),M.steelDark,0,-.05,0,sepHub);b.rotation.y=k*Math.PI/4;}
+for(let i=0;i<4;i++){const a=Math.PI/4+i*Math.PI/2;mesh(new THREE.BoxGeometry(.25,7.6,.25),M.frame,Math.cos(a)*1.7,3.8,Math.sin(a)*1.7,sep);}
+DEF.sep={title:'Separator',zone:'04 Cement grinding',status:()=>st(running()),
+  rows:()=>[['Rotor speed',(running()?S.m.sepRpm:0).toFixed(0)+' rpm'],['Motor current',(running()?S.m.sepCur:0).toFixed(1)+' A'],['Speed setpoint','78 %'],['Blaine (ประมาณ)','3,450 cm²/g']]};
+reg('sep',sep);
+const fReturn=flow([[-8,5,12],[-8,4.6,8.3],[-32.6,4.6,8.3],[-32.6,4.6,10.8]],{kind:'pipe',color:0xd9a066,speed:5,count:16,gate:millGate});
+const fFines=flow([[-6,9.6,12],[-.5,9.6,12],[-.5,4.9,12]],{kind:'pipe',color:0xcfd6dd,speed:5,gate:millGate});
+
+const fan=new THREE.Group(); fan.position.set(0,2.6,12); scene.add(fan);
+mesh(new THREE.CylinderGeometry(2.1,2.1,1.4,40),M.steel,0,0,0,fan).rotation.x=Math.PI/2;
+mesh(new THREE.BoxGeometry(2,1.6,1.4),M.steel,1.4,-.9,0,fan);
+const ring=mesh(new THREE.TorusGeometry(1.75,.09,8,48),M.steelDark,0,0,.75,fan);
+const imp=new THREE.Group(); imp.position.z=.78; fan.add(imp);
+mesh(new THREE.CylinderGeometry(.35,.35,.2,16),M.steelDark,0,0,0,imp).rotation.x=Math.PI/2;
+for(let k=0;k<8;k++){const b=mesh(new THREE.BoxGeometry(.22,1.5,.08),std(0x9fb0bf,.6,.3),0,0,0,imp);b.rotation.z=k*Math.PI/4;b.translateY(.95);b.rotation.y=.4;}
+mesh(new THREE.BoxGeometry(1.6,1.4,1.6),M.motor,0,0,-1.6,fan);
+mesh(new THREE.BoxGeometry(3,.6,4.6),M.concrete,0,-2.3,-.4,fan);
+DEF.fan={title:'ID fan',zone:'04 Cement grinding',status:()=>st(running()),
+  rows:()=>[['Fan speed',(running()?S.m.fanSp:0).toFixed(1)+' %'],['Motor current',(running()?S.m.fanCur:0).toFixed(1)+' A'],['Air flow',(running()?Math.round(S.m.air):0).toLocaleString()+' m³/h'],['Pressure',(running()?Math.round(S.m.pr):0)+' Pa']]};
+reg('fan',fan);
+const fToBag=flow([[2.2,2.6,12],[6.6,2.6,12],[6.6,7.4,12],[9,7.4,12]],{kind:'pipe',color:0xcfd6dd,speed:6,gate:millGate});
+
+const bag=new THREE.Group(); bag.position.set(12,0,12); scene.add(bag);
+mesh(new THREE.BoxGeometry(6,4.4,4),M.steel,0,7.6,0,bag);
+mesh(new THREE.BoxGeometry(6.3,.3,4.3),M.steelDark,0,9.95,0,bag);
+for(let i=-1;i<=1;i++){mesh(new THREE.ConeGeometry(1.45,2.4,4),M.steel,i*2,4.2,0,bag).rotation.set(Math.PI,Math.PI/4,0);}
+for(let i=-2;i<=2;i++)for(let j=-1;j<=1;j++) mesh(new THREE.CylinderGeometry(.22,.22,.35,10),M.bag,i*1.15,10.25,j*1.15,bag);
+for(let i=-1;i<=1;i+=2)for(let j=-1;j<=1;j+=2) mesh(new THREE.BoxGeometry(.3,5.4,.3),M.frame,i*2.8,2.7,j*1.8,bag);
+DEF.bag={title:'Bag filter',zone:'04 Cement grinding',status:()=>st(running()),
+  rows:()=>[['Differential P',Math.round(S.m.dp)+' Pa'],['Fan status',running()?'RUN':'STOP'],['Cleaning status',S.m.clean>0?'PULSING':'OK'],['จำนวนถุงกรอง','15 × 12']]};
+reg('bag',bag);
+const fToSilo=flow([[15,8.8,12],[17.2,8.8,12],[17.2,16.4,12],[38,16.4,12]],{kind:'pipe',color:0xcfd6dd,speed:6,gate:millGate});
+
+/* ===== Zone 05: cement silos ===== */
+const cemSilos=S.cem.map((c,i)=>{
+  const x=20+i*6, s=silo({x,z:12,r:2.4,h:9,leg:2.6,cone:2.4});
+  beam(V(x,16.4,12),V(x,s.top,12),.22,M.pipeSolid,scene);
+  beam(V(x,2.2,12),V(x,.9,15.2),.2,M.pipeSolid,scene);
+  const key='csilo'+i;
+  DEF[key]={title:`${c.code} Cement-0${i+1}`,zone:'05 Cement storage',level:{get:()=>S.cem[i].lv,set:v=>S.cem[i].lv=v},
+    status:()=>S.fillIdx===i&&running()?['FILLING','run']:S.drawIdx===i&&S.load.phase==='load'?['DISCHARGE','wait']:['STANDBY','stop'],
+    rows:()=>[['ระดับ',c.lv.toFixed(1)+' %'],['น้ำหนัก',Math.round(c.lv/100*S.cemCap).toLocaleString()+' t'],['ความจุ',S.cemCap.toLocaleString()+' t'],['สถานะระดับ',LVTXT[lvClass(c.lv)]]],
+    hint:'ปูนจากหม้อบดเข้าไซโลทีละใบ เมื่อเกิน 92% จะสลับไปไซโลที่ต่ำที่สุด'};
+  reg(key,s.g); return s;
+});
+
+/* ===== Zone 06 / 07 / 08: dispatch, weighing, loading ===== */
+const loadActive=()=>simOn()&&S.load.phase==='load';
+const fDispatch=flow([[20,.6,15.6],[41,.6,15.6],[41,.6,5]],{kind:'belt',color:0xbfc6cc,speed:3.2,gate:()=>loadActive()?1:0});
+const elev4=elevator(41,4,8.2);
+const fElev4=flow([[41,.9,4],[41,8.2,4]],{kind:'none',color:0xbfc6cc,speed:3.5,count:6,gate:()=>loadActive()?1:0});
+const fSpout=flow([[41,8.9,4],[44,8.9,4],[44,4.4,4]],{kind:'pipe',color:0xcfd6dd,speed:5,gate:()=>loadActive()?1:0});
+const spout=new THREE.Group(); spout.position.set(44,0,4); scene.add(spout);
+mesh(new THREE.CylinderGeometry(.55,.3,1,16),M.steelDark,0,4.2,0,spout);
+mesh(new THREE.BoxGeometry(.3,10,.3),M.frame,2.4,5,0,spout); mesh(new THREE.BoxGeometry(2.8,.3,.3),M.frame,1.1,9.4,0,spout);
+DEF.dispatch={title:'Dispatch conveyor',zone:'06 Cement dispatch',status:()=>st(loadActive()),
+  rows:()=>[['ดึงจากไซโล',S.cem[S.drawIdx].code],['อัตราลำเลียง',loadActive()?'225 t/h':'0 t/h'],['ความยาว','34 m']]};
+reg('dispatch',fDispatch.g); reg('dispatch',elev4);
+
+const wb=new THREE.Group(); wb.position.set(44,0,-6); scene.add(wb);
+mesh(new THREE.BoxGeometry(3.6,.25,10),std(0x56626e,.5,.5),0,.13,0,wb);
+mesh(new THREE.BoxGeometry(.2,3.2,.2),M.frame,-2.6,1.6,0,wb);
+const wbScreen=mesh(new THREE.BoxGeometry(.15,1,1.6),std(0x0d151c,0,.6,{emissive:0x0b3a40,emissiveIntensity:1}),-2.6,3.4,0,wb);
+DEF.weigh={title:'Weighbridge',zone:'07 Weighing system',status:()=>S.load.phase==='weigh'?['WEIGHING','run']:['READY','stop'],
+  rows:()=>[['ค่าที่อ่านได้',(S.load.phase==='weigh'?S.load.tare:0).toFixed(1)+' t'],['น้ำหนักรถเปล่า (คันล่าสุด)',S.load.tare.toFixed(1)+' t'],['พิกัดเครื่องชั่ง','60 t'],['ขนาดแท่นชั่ง','3.6 × 10 m']]};
+reg('weigh',wb);
+
+function tanker(){
+  const g=new THREE.Group(); scene.add(g);
+  mesh(new THREE.BoxGeometry(8.6,.5,2.2),M.frame,0,.95,0,g);
+  mesh(new THREE.BoxGeometry(2,2.1,2.4),std(0x2f78b5,.2,.5),-3.3,2.1,0,g);
+  mesh(new THREE.BoxGeometry(.1,.9,2.1),M.glass,-4.32,2.55,0,g);
+  mesh(new THREE.CylinderGeometry(1.15,1.15,6,28),M.tank,.9,2.45,0,g).rotation.z=Math.PI/2;
+  mesh(new THREE.CylinderGeometry(.35,.35,.3,16),M.steelDark,.8,3.65,0,g);
+  [-3.2,1.6,3.1].forEach(x=>[-1.15,1.15].forEach(z=>mesh(new THREE.CylinderGeometry(.55,.55,.45,16),M.rubber,x,.55,z,g).rotation.x=Math.PI/2));
+  g.rotation.y=Math.PI/2; return g;
+}
+const lTruck=tanker();
+DEF.loading={title:'Truck loading',zone:'08 Truck loading',status:()=>loadActive()?['LOADING','run']:S.load.phase==='hold'?['WAIT','alarm']:S.load.phase==='gap'||S.load.phase==='idle'?['IDLE','stop']:['IN TRANSIT','wait'],
+  rows:()=>{const r=S.load.row;return [['สถานะรถ',{idle:'ไม่มีรถในคิว',hold:'รอ – ปูนไม่พอ',in:'เข้าเครื่องชั่ง',weigh:'กำลังชั่งรถเปล่า',move:'เข้าจุดโหลด',load:'กำลังโหลด',out:'ออกจากโรงงาน',gap:'รอคันถัดไป'}[S.load.phase]],
+    ['ทะเบียนรถ',r?r.plate:'–'],['ลูกค้า',r?r.customer:'–'],['โหลดแล้ว',r?S.load.loaded.toFixed(1)+' / '+(+r.t).toFixed(1)+' t':'–'],['ไซโลต้นทาง',S.cem[S.drawIdx].code],['จ่ายออกแล้ว',S.load.count+' คัน · '+S.load.tons.toFixed(0)+' t']];},
+  hint:'รถจ่ายปูนทำงานตามคิวในแท็บ "แผนขนส่ง"'};
+reg('loading',lTruck); reg('loading',spout);
+
+DEF.plant={title:'ภาพรวมโรงงาน',zone:'Cement plant',status:()=>S.paused?(S.stepLeft>0?['STEP','wait']:['STOP','stop']):S.feed>0?[S.speed.toFixed(2)!=='1.00'?`RUN ×${S.speed.toFixed(2)}`:'RUN','run']:['IDLE','stop'],
+  rows:()=>[['Mill feed setpoint',S.feed+' %'],['อัตราผลิตปูน',(running()?100*ff():0).toFixed(1)+' t/h'],['ปูนในไซโลรวม',Math.round(S.cem.reduce((a,c)=>a+c.lv,0)/100*S.cemCap).toLocaleString()+' t'],['รถรับวัตถุดิบวันนี้',S.recv.count+' คัน'],['รถจ่ายปูนวันนี้',S.load.count+' คัน'],['Mill motor current',S.m.cur.toFixed(1)+' A']],
+  hint:'คลิกที่อุปกรณ์หรือป้ายชื่อเพื่อดูค่าการทำงาน เลือกพื้นที่จากเมนูเพื่อให้กล้องเคลื่อนไปยังจุดนั้น ค่าทั้งหมดเป็นข้อมูลจำลอง'};
+
+/* ---------- labels ---------- */
+const labels=[];
+const tagDefs=[
+  ['recv',()=>V(-41.5,5,-12),()=>['RECEIVING HOPPER',DEF.recv.status()[0]]],
+  ['elev1',()=>V(-27,18.2,-12),()=>['BUCKET ELEVATOR-01',DEF.elev1.status()[0]]],
+  ...S.raw.map((r,i)=>['silo'+i,()=>V(-20+i*6,rawSilos[i].top+.6,-12),()=>[`${r.code} ${r.name.toUpperCase()}`,r.lv.toFixed(0)+' %']]),
+  ...S.raw.map((r,i)=>['wf'+i,()=>V(8+i*4.5,10.6,-12),()=>[`WF-0${i+1}`,(running()?r.base*ff():0).toFixed(1)+' t/h']]),
+  ['elev2',()=>V(-38,12.4,12),()=>['BUCKET ELEVATOR-02',DEF.elev2.status()[0]]],
+  ['mill',()=>V(-24.5,6.8,12),()=>['CEMENT MILL',S.m.cur.toFixed(1)+' A']],
+  ['sep',()=>V(-8,12.4,12),()=>['SEPARATOR',(running()?S.m.sepRpm:0).toFixed(0)+' rpm']],
+  ['fan',()=>V(0,5.6,12),()=>['ID FAN',(running()?S.m.fanSp:0).toFixed(1)+' %']],
+  ['bag',()=>V(12,11.2,12),()=>['BAG FILTER',Math.round(S.m.dp)+' Pa']],
+  ...S.cem.map((c,i)=>['csilo'+i,()=>V(20+i*6,cemSilos[i].top+.7,12),()=>[c.code,Math.round(c.lv/100*S.cemCap).toLocaleString()+' t']]),
+  ['dispatch',()=>V(41,10,4),()=>['DISPATCH ELEVATOR',DEF.dispatch.status()[0]]],
+  ['weigh',()=>V(44,4.6,-6),()=>['WEIGHBRIDGE',(S.load.phase==='weigh'?S.load.tare:0).toFixed(1)+' t']],
+  ['loading',()=>V(44,11,4),()=>['LOADING SPOUT',S.load.loaded.toFixed(1)+' t']]
+];
+tagDefs.forEach(([key,posFn,txtFn])=>{
+  const el=document.createElement('button'); el.className='tag'; el.type='button';
+  el.innerHTML='<b></b><span></span>'; el.addEventListener('click',()=>select(key));
+  labelLayer.appendChild(el); labels.push({el,key,pos:posFn(),txt:txtFn,b:el.firstChild,s:el.lastChild,shown:true});
+});
+ZONES.forEach(z=>{
+  const el=document.createElement('div'); el.className='zlabel'; el.innerHTML=`<i>${z.n}</i>${z.name}`;
+  labelLayer.appendChild(el); labels.push({el,pos:V(z.box[0]+.5,.2,z.box[3]-.3),zone:true,shown:true,left:true});
+});
+function refreshTags(){
+  labels.forEach(L=>{if(!L.txt)return;const [a,b]=L.txt();L.b.textContent=a;L.s.textContent=b;
+    const sc=DEF[L.key].status()[1];L.el.className='tag '+(sc==='normal'?'run':sc)+(S.sel===L.key?' on':'');});
+}
+const pv=new THREE.Vector3();
+function placeLabels(){
+  const w=stage.clientWidth,h=stage.clientHeight;
+  labels.forEach(L=>{
+    pv.copy(L.pos).project(camera);
+    const show=S.labels&&pv.z<1&&Math.abs(pv.x)<1.1&&Math.abs(pv.y)<1.1;
+    if(show!==L.shown){L.el.hidden=!show;L.shown=show;}
+    if(show){const x=(pv.x*.5+.5)*w,y=(-pv.y*.5+.5)*h;L.el.style.transform=L.left?`translate(${x}px,${y}px) translate(0,-100%)`:`translate(${x}px,${y}px) translate(-50%,-100%)`;}
+  });
+}
+
+/* ---------- nav + detail panel ---------- */
+const nav=$('#nav'), legend=$('#legend');
+function addNav(n,name,th,fn){const b=document.createElement('button');b.type='button';b.innerHTML=`<em>${n}</em><span>${name}<small>${th}</small></span>`;b.addEventListener('click',()=>{nav.querySelectorAll('button').forEach(x=>x.classList.remove('on'));b.classList.add('on');fn();});nav.insertBefore(b,legend);return b;}
+addNav('◎','Overview','มุมมองรวม',()=>{flyTo(HOME.pos,HOME.tgt);select('plant');}).classList.add('on');
+ZONES.forEach(z=>addNav(z.n,z.name,z.th,()=>{const s=z.size;flyTo(z.center.clone().add(V(s*.2,s*.5+10,s*.75+12)),z.center);}));
+
+const dRows=$('#dRows'), lvl=$('#lvl');
+let rowCells=[];
+function select(key){
+  S.sel=key; const d=DEF[key];
+  $('#dZone').textContent=d.zone; $('#dTitle').textContent=d.title;
+  dRows.innerHTML=''; rowCells=d.rows().map(([k,v])=>{const dt=document.createElement('dt');dt.textContent=k;const dd=document.createElement('dd');dd.textContent=v;dRows.append(dt,dd);return dd;});
+  $('#dLevel').hidden=!d.level; if(d.level){lvl.value=Math.round(d.level.get());$('#lvlVal').textContent=lvl.value+'%';}
+  $('#dHint').textContent=d.hint||''; $('#dHint').hidden=!d.hint;
+  const act=$('#dActions'); act.innerHTML='';
+  if(key!=='plant'){
+    const z=document.createElement('button');z.className='btn primary';z.type='button';z.textContent='ซูมไปที่อุปกรณ์';z.onclick=()=>focusObj(d.obj);act.appendChild(z);
+    const c=document.createElement('button');c.className='btn';c.type='button';c.textContent='ปิด';c.onclick=()=>select('plant');act.appendChild(c);
+  }
+  updateDetail(); placeRing(); refreshTags();
+}
+function updateDetail(){
+  const d=DEF[S.sel]; d.rows().forEach(([,v],i)=>{if(rowCells[i])rowCells[i].textContent=v;});
+  const [t,c]=d.status(); const p=$('#dStatus'); p.textContent=t; p.className='pill '+(c==='normal'?'run':c);
+  if(d.level&&document.activeElement!==lvl){lvl.value=Math.round(d.level.get());$('#lvlVal').textContent=lvl.value+'%';}
+}
+lvl.addEventListener('input',()=>{const d=DEF[S.sel];if(d.level){d.level.set(+lvl.value);$('#lvlVal').textContent=lvl.value+'%';}});
+
+/* selection ring */
+const ringMat=new THREE.MeshBasicMaterial({color:0x3cc4d6,transparent:true,opacity:.7,side:THREE.DoubleSide,depthWrite:false});
+const selRing=new THREE.Mesh(new THREE.RingGeometry(1,1.12,64),ringMat); selRing.rotation.x=-Math.PI/2; selRing.visible=false; scene.add(selRing);
+const box3=new THREE.Box3(), bsz=new THREE.Vector3(), bc=new THREE.Vector3();
+function placeRing(){
+  const o=DEF[S.sel].obj; if(!o){selRing.visible=false;return;}
+  box3.setFromObject(o); box3.getSize(bsz); box3.getCenter(bc);
+  selRing.position.set(bc.x,.06,bc.z); const r=Math.max(bsz.x,bsz.z)/2+1; selRing.scale.set(r,r,1); selRing.visible=true;
+}
+function focusObj(o){
+  if(!o)return; box3.setFromObject(o); box3.getSize(bsz); box3.getCenter(bc);
+  const d=Math.max(bsz.x,bsz.y,bsz.z)*1.6+8; flyTo(bc.clone().add(V(d*.35,d*.55,d)),bc.clone());
+}
+function flyTo(pos,tgt){S.fly={p0:camera.position.clone(),t0:controls.target.clone(),p1:pos.clone(),t1:tgt.clone(),k:0};}
+
+/* picking */
+const ray=new THREE.Raycaster(), mouse=new THREE.Vector2(); let down=null;
+function pick(e){const r=canvas.getBoundingClientRect();mouse.set(((e.clientX-r.left)/r.width)*2-1,-((e.clientY-r.top)/r.height)*2+1);ray.setFromCamera(mouse,camera);const hit=ray.intersectObjects(pickables,true)[0];return hit&&hit.object.userData.key;}
+canvas.addEventListener('pointerdown',e=>{down=[e.clientX,e.clientY];});
+canvas.addEventListener('pointerup',e=>{if(down&&Math.hypot(e.clientX-down[0],e.clientY-down[1])<5){const k=pick(e);select(k||'plant');}down=null;});
+let hoverT=0;canvas.addEventListener('pointermove',e=>{if(e.buttons||performance.now()-hoverT<80)return;hoverT=performance.now();canvas.style.cursor=pick(e)?'pointer':'grab';});
+
+/* controls */
+const feed=$('#feed'), feedOut=$('#feedOut');
+feed.addEventListener('input',()=>{S.feed=+feed.value;feedOut.textContent=S.feed+'%';});
+$('#labelBtn').addEventListener('click',e=>{S.labels=!S.labels;e.target.textContent=S.labels?'ซ่อนป้าย':'แสดงป้าย';});
+
+feed.addEventListener('change',()=>logEvent(`ปรับ Mill feed เป็น ${S.feed}%`,'info'));
+
+/* ---------- dashboard ---------- */
+const dash=$('#dash'), detailEl=$('#detail'), hintEl=$('.hint');
+const css=getComputedStyle(document.documentElement), tok=k=>css.getPropertyValue(k).trim();
+const C={fg:tok('--fg'),muted:tok('--muted'),line:tok('--line'),c1:tok('--accent'),c2:tok('--c2')};
+const HMAX=240, hist={cur:[],mt:[],bt:[],stock:[]};
+const cemStock=()=>S.cem.reduce((a,c)=>a+c.lv,0)/100*S.cemCap;
+function sample(){[['cur',S.m.cur],['mt',S.m.mt],['bt',S.m.bt],['stock',cemStock()]].forEach(([k,v])=>{hist[k].push(v);if(hist[k].length>HMAX)hist[k].shift();});}
+const logEl=$('#log');
+function logEvent(text,cls){
+  const d=new Date(),p=v=>String(v).padStart(2,'0');
+  const li=document.createElement('li'); li.className=cls||'';
+  li.innerHTML=`<time>${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}</time><i></i><span></span>`;
+  li.lastChild.textContent=text; logEl.prepend(li);
+  while(logEl.children.length>40) logEl.lastChild.remove();
+}
+const prevCls={raw:S.raw.map(r=>lvClass(r.lv)),cem:S.cem.map(c=>lvClass(c.lv))};
+function checkAlarms(){
+  [['raw',S.raw,r=>`${r.code} ${r.name}`],['cem',S.cem,c=>c.code]].forEach(([k,arr,name])=>arr.forEach((x,i)=>{
+    const c=lvClass(x.lv); if(c===prevCls[k][i])return; prevCls[k][i]=c;
+    if(c==='hh')logEvent(`${name(x)} ระดับ HIGH HIGH (${x.lv.toFixed(0)}%)`,'alarm');
+    else if(c==='low')logEvent(`${name(x)} ระดับ LOW (${x.lv.toFixed(0)}%)`,'wait');
+    else if(c==='normal')logEvent(`${name(x)} กลับสู่ระดับปกติ`,'run');
+  }));
+}
+const alarmCount=()=>S.raw.concat(S.cem).filter(x=>{const c=lvClass(x.lv);return c==='hh'||c==='low';}).length+(S.recv.phase==='hold'?1:0);
+function niceStep(r){const p=Math.pow(10,Math.floor(Math.log10(r))),m=r/p;return (m<=1?1:m<=2?2:m<=5?5:10)*p;}
+function drawChart(cv,series){
+  const w=cv.clientWidth,h=cv.clientHeight; if(!w)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,w,h);
+  const all=series.flatMap(s=>s.data); if(all.length<2)return;
+  let lo=Math.min(...all),hi=Math.max(...all); const span=(hi-lo)||Math.max(1,Math.abs(hi)*.05);
+  lo-=span*.2; hi+=span*.2; const step=niceStep((hi-lo)/4); lo=Math.floor(lo/step)*step; hi=Math.ceil(hi/step)*step;
+  const L=48,R=56,T=8,B=20,pw=w-L-R,ph=h-T-B, Y=v=>T+ph*(1-(v-lo)/(hi-lo));
+  const fmt=v=>Math.abs(v)>=1000?Math.round(v).toLocaleString():v.toFixed(step<1?1:0);
+  x.font='10px "IBM Plex Mono", monospace'; x.textBaseline='middle';
+  for(let v=lo;v<=hi+step*1e-6;v+=step){const y=Math.round(Y(v))+.5;x.strokeStyle=C.line;x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(L+pw,y);x.stroke();x.fillStyle=C.muted;x.textAlign='right';x.fillText(fmt(v),L-6,y);}
+  x.textAlign='left'; x.fillText('-2 min',L,h-7); x.textAlign='right'; x.fillText('now',L+pw,h-7);
+  series.forEach((s,si)=>{
+    const d=s.data,nn=d.length,X=i=>L+pw*(i+HMAX-nn)/(HMAX-1);
+    x.beginPath(); d.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));
+    if(si===0){x.save();x.lineTo(X(nn-1),T+ph);x.lineTo(X(0),T+ph);x.closePath();const g=x.createLinearGradient(0,T,0,T+ph);g.addColorStop(0,s.color+'40');g.addColorStop(1,s.color+'00');x.fillStyle=g;x.fill();x.restore();
+      x.beginPath(); d.forEach((v,i)=>i?x.lineTo(X(i),Y(v)):x.moveTo(X(i),Y(v)));}
+    x.strokeStyle=s.color; x.lineWidth=1.8; x.stroke();
+    const ex=X(nn-1),ey=Y(d[nn-1]); x.fillStyle=s.color; x.beginPath(); x.arc(ex,ey,3.2,0,Math.PI*2); x.fill();
+    x.textAlign='left'; x.fillStyle=C.fg; x.fillText(fmt(d[nn-1]),ex+7,ey);
+  });
+}
+const lvVar={hh:'var(--hh)',high:'var(--high)',normal:'var(--run)',low:'var(--low)'};
+function bars(arr,right){return arr.map(r=>{const c=lvClass(r.lv);return `<div class="bar-row"><span>${r.code}<small>${r.name||'Cement'}</small></span><div class="track"><i style="width:${r.lv.toFixed(1)}%;background:${lvVar[c]}"></i></div><b>${right(r)}</b></div>`;}).join('');}
+function renderDash(){
+  const run=running(), out=run?100*ff():0, al=alarmCount();
+  $('#kpis').innerHTML=[
+    ['Mill output',out.toFixed(1),'t/h',`Feed setpoint ${S.feed}%`],
+    ['Mill motor power',Math.round(S.m.pow).toLocaleString(),'kW',`${S.m.cur.toFixed(1)} A`],
+    ['Cement stock',Math.round(cemStock()).toLocaleString(),'t',`เติมอยู่ที่ ${S.cem[S.fillIdx].code}`],
+    ['รับวัตถุดิบแล้ว',S.recv.count,'คัน',`${Math.round(S.recv.tons).toLocaleString()} t จากแผน ${plan.in.length} คัน`],
+    ['จ่ายปูนแล้ว',S.load.count,'คัน',`${Math.round(S.load.tons).toLocaleString()} t จากแผน ${plan.out.length} คัน`],
+    ['Active alarms',al,'',al?'ดูรายละเอียดใน Event log':'ไม่มี alarm']
+  ].map(([k,v,u,s],i)=>`<div class="kpi${i===5&&al?' alarm':''}"><span>${k}</span><strong>${v}<small>${u}</small></strong><em>${s}</em></div>`).join('');
+  drawChart($('#chCur'),[{data:hist.cur,color:C.c1}]);
+  drawChart($('#chTemp'),[{data:hist.mt,color:C.c1},{data:hist.bt,color:C.c2}]);
+  drawChart($('#chStock'),[{data:hist.stock,color:C.c1}]);
+  $('#rawBars').innerHTML=bars(S.raw,r=>r.lv.toFixed(0)+'%');
+  $('#cemBars').innerHTML=bars(S.cem,r=>Math.round(r.lv/100*S.cemCap).toLocaleString()+' t');
+  $('#wfTable').innerHTML='<tr><th>Feeder</th><th>Setpoint</th><th>Actual</th><th>Totalizer</th></tr>'+S.raw.map((r,i)=>{const sp=r.base*ff(),a=run?sp+n(sp*.006):0;return `<tr><td>WF-0${i+1} ${r.name}</td><td>${sp.toFixed(1)} t/h</td><td>${a.toFixed(1)} t/h</td><td>${Math.floor(S.wfTotal[i]).toLocaleString()} t</td></tr>`;}).join('');
+  const dl=[['ID fan'],['Fan speed',(run?S.m.fanSp:0).toFixed(1)+' %'],['Motor current',(run?S.m.fanCur:0).toFixed(1)+' A'],['Air flow',(run?Math.round(S.m.air):0).toLocaleString()+' m³/h'],['Pressure',(run?Math.round(S.m.pr):0)+' Pa'],
+    ['Bag filter'],['Differential P',Math.round(S.m.dp)+' Pa'],['Cleaning',S.m.clean>0?'PULSING':'OK'],
+    ['Separator'],['Rotor speed',(run?S.m.sepRpm:0).toFixed(0)+' rpm'],['Motor current',(run?S.m.sepCur:0).toFixed(1)+' A']];
+  $('#airDl').innerHTML=dl.map(r=>r.length===1?`<dt class="sub">${r[0]}</dt>`:`<dt>${r[0]}</dt><dd>${r[1]}</dd>`).join('');
+}
+function setView(v){
+  S.view=v; const is3d=v==='3d';
+  dash.hidden=v!=='dash'; planEl.hidden=v!=='plan'; $('#trans').hidden=v!=='trans'; if(v==='trans')S.tlScroll=true; nav.hidden=!is3d; detailEl.hidden=!is3d; labelLayer.hidden=!is3d; hintEl.hidden=!is3d;
+  [['tab3d','3d'],['tabDash','dash'],['tabTrans','trans'],['tabPlan','plan']].forEach(([id,k])=>{const b=$('#'+id);b.classList.toggle('on',v===k);b.setAttribute('aria-selected',v===k);});
+  if(v==='dash')renderDash(); if(v==='plan')renderPlan(); if(v==='trans')renderTrans();
+}
+$('#tabTrans').addEventListener('click',()=>setView('trans'));
+$('#tab3d').addEventListener('click',()=>setView('3d'));
+$('#tabDash').addEventListener('click',()=>setView('dash'));
+$('#tabPlan').addEventListener('click',()=>setView('plan'));
+
+/* ---------- transport plan ---------- */
+const planEl=$('#plan'), PKEY='cp3d-transport-plan-v1';
+let planDirty=false;
+const newId=()=>'r'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const pad2=v=>String(v).padStart(2,'0');
+const hm=m=>{m=((Math.floor(m)%1440)+1440)%1440;return pad2(Math.floor(m/60))+':'+pad2(m%60);};
+const toMin=s=>{const [h,m]=String(s||'00:00').split(':').map(Number);return (h||0)*60+(m||0);};
+const simHM=()=>hm(S.simMin);
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function examplePlan(){
+  const ins=[[0,'70-4512'],[0,'71-0833'],[2,'70-9921'],[0,'72-1156'],[1,'70-3307'],[0,'71-7740'],[3,'72-5018'],[0,'70-6625'],[2,'71-2209'],[0,'70-4512']];
+  const outs=[['ตัวอย่าง: ร้านวัสดุบางนา','82-1104',30],['ตัวอย่าง: โครงการคอนโด A','83-2290',30],['ตัวอย่าง: ผู้รับเหมา B','82-7731',25],['ตัวอย่าง: โรงงานคอนกรีต C','84-0412',30],['ตัวอย่าง: ร้านวัสดุบางนา','82-1104',20],['ตัวอย่าง: โครงการคอนโด A','83-5566',30],['ตัวอย่าง: โรงงานคอนกรีต C','84-0412',30],['ตัวอย่าง: ผู้รับเหมา B','82-9014',25]];
+  return {
+    in:ins.map(([m,p],i)=>({id:newId()+i,time:hm(480+i*20),plate:p,mat:m,t:28,status:'pending',doneAt:'',note:''})),
+    out:outs.map(([c,p,t],i)=>({id:newId()+i,time:hm(490+i*25),plate:p,customer:c,t,silo:'auto',status:'pending',doneAt:'',note:''}))
+  };
+}
+function loadPlan(){
+  try{const s=JSON.parse(localStorage.getItem(PKEY));
+    if(s&&Array.isArray(s.in)&&Array.isArray(s.out)){s.in.concat(s.out).forEach(r=>{if(r.status!=='done')r.status='pending';r.note='';r.id=String(r.id);});if(s.simMin!=null)S.simMin=s.simMin;return s;}
+  }catch(e){}
+  return examplePlan();
+}
+const plan=loadPlan();
+function savePlan(){try{plan.simMin=S.simMin;localStorage.setItem(PKEY,JSON.stringify(plan));}catch(e){}}
+const byTime=(a,b)=>a.time<b.time?-1:a.time>b.time?1:a.id-b.id;
+const isOpen=r=>r.status==='pending'||r.status==='hold';
+const nextRow=list=>list.filter(r=>isOpen(r)&&toMin(r.time)<=S.simMin).sort(byTime)[0];
+const STATUS={pending:['รอคิว','stop'],active:['กำลังดำเนินการ','run'],hold:['รอ','alarm'],done:['เสร็จ','done']};
+function pillHTML(r){
+  let [t,c]=STATUS[r.status];
+  if(r.status==='done')t+=' '+r.doneAt;
+  else if(r.status==='hold')t+=' – '+r.note;
+  else if(r.status==='pending'&&S.simMin-toMin(r.time)>15){t='ล่าช้า '+Math.round(S.simMin-toMin(r.time))+' นาที';c='wait';}
+  return `<span class="pill ${c}">${esc(t)}</span>`;
+}
+/* plan check: walk open rows in time order and project silo levels at each truck's time */
+function planChecks(){
+  const res={}, f=running()?ff():0, now=S.simMin;
+  const lv=S.raw.map(r=>r.lv/100*r.cap);
+  plan.in.filter(isOpen).sort(byTime).forEach(r=>{
+    const raw=S.raw[r.mat], mins=Math.max(0,toMin(r.time)-now);
+    const at=Math.max(0,lv[r.mat]-raw.base*f/60*mins);
+    lv[r.mat]+=+r.t;
+    const pct=(at+ +r.t)/raw.cap*100;
+    res[r.id]=pct>95?['bad',`ไซโลจะเกิน (${pct.toFixed(0)}%)`]:pct>90?['warn',`ใกล้เต็ม (${pct.toFixed(0)}%)`]:['',`หลังรับ ≈ ${pct.toFixed(0)}%`];
+  });
+  let stock=S.cem.reduce((a,c)=>a+c.lv,0)/100*S.cemCap, out=0;
+  const prod=100*f/60;
+  plan.out.filter(isOpen).sort(byTime).forEach(r=>{
+    const mins=Math.max(0,toMin(r.time)-now); out+=+r.t;
+    const avail=stock+prod*mins-out;
+    let msg=avail<0?['bad',`ปูนอาจขาด ${Math.round(-avail)} t`]:['',`คงเหลือ ≈ ${Math.round(avail).toLocaleString()} t`];
+    if(r.silo!=='auto'&&S.cem[r.silo].lv/100*S.cemCap<+r.t&&avail>=0)msg=['warn',`${S.cem[r.silo].code} มีไม่พอ`];
+    res[r.id]=msg;
+  });
+  return res;
+}
+const inBody=$('#inBody'), outBody=$('#outBody');
+function rowAttrs(r){return (SH.ro||r.status==='active'||r.status==='done')?' disabled':'';}
+function renderPlan(){
+  inBody.innerHTML=plan.in.slice().sort(byTime).map(r=>{const d=rowAttrs(r);return `<tr data-id="${r.id}" data-list="in" class="${r.status}">
+    <td><input type="time" id="in-time-${r.id}" data-f="time" value="${r.time}"${d} aria-label="เวลา"></td>
+    <td><input type="text" id="in-plate-${r.id}" data-f="plate" value="${esc(r.plate)}"${d} aria-label="ทะเบียนรถ"></td>
+    <td><select id="in-mat-${r.id}" data-f="mat"${d} aria-label="วัตถุดิบ">${S.raw.map((m,i)=>`<option value="${i}"${i==r.mat?' selected':''}>${m.name}</option>`).join('')}</select></td>
+    <td><input type="number" id="in-t-${r.id}" data-f="t" min="1" max="45" step="0.5" value="${r.t}"${d} aria-label="น้ำหนัก"></td>
+    <td class="muted">${S.raw[r.mat].code}</td>
+    <td id="in-st-${r.id}">${pillHTML(r)}</td><td class="chk" id="in-ck-${r.id}"></td>
+    <td><button class="del" type="button" data-del="${r.id}"${r.status==='active'?' disabled':''} aria-label="ลบรายการ">×</button></td></tr>`;}).join('')||'<tr><td colspan="8" class="chk">ยังไม่มีรถในแผน กด "+ เพิ่มรถรับวัตถุดิบ"</td></tr>';
+  outBody.innerHTML=plan.out.slice().sort(byTime).map(r=>{const d=rowAttrs(r);return `<tr data-id="${r.id}" data-list="out" class="${r.status}">
+    <td><input type="time" id="out-time-${r.id}" data-f="time" value="${r.time}"${d} aria-label="เวลา"></td>
+    <td><input type="text" id="out-plate-${r.id}" data-f="plate" value="${esc(r.plate)}"${d} aria-label="ทะเบียนรถ"></td>
+    <td><input type="text" id="out-cust-${r.id}" data-f="customer" value="${esc(r.customer)}"${d} aria-label="ลูกค้า"></td>
+    <td><input type="number" id="out-t-${r.id}" data-f="t" min="1" max="45" step="0.5" value="${r.t}"${d} aria-label="ปริมาณ"></td>
+    <td><select id="out-silo-${r.id}" data-f="silo"${d} aria-label="ไซโลต้นทาง"><option value="auto">อัตโนมัติ</option>${S.cem.map((c,i)=>`<option value="${i}"${String(i)===String(r.silo)?' selected':''}>${c.code}</option>`).join('')}</select></td>
+    <td id="out-st-${r.id}">${pillHTML(r)}</td><td class="chk" id="out-ck-${r.id}"></td>
+    <td><button class="del" type="button" data-del="${r.id}"${r.status==='active'?' disabled':''} aria-label="ลบรายการ">×</button></td></tr>`;}).join('')||'<tr><td colspan="8" class="chk">ยังไม่มีรถในแผน กด "+ เพิ่มรถจ่ายปูน"</td></tr>';
+  inBody.querySelectorAll('.del').forEach(b=>{if(SH.ro)b.disabled=true;});
+  outBody.querySelectorAll('.del').forEach(b=>{if(SH.ro)b.disabled=true;});
+  ['addIn','addOut','pasteIn','pasteOut','clearDone','resetPlan'].forEach(id=>$('#'+id).disabled=SH.ro);
+  const empty=SH.mode==='shared'&&SH.got.in&&SH.got.out&&!plan.in.length&&!plan.out.length;
+  $('#sharedEmpty').hidden=!empty;
+  if(empty){
+    const n=SH.backup.in.length+SH.backup.out.length;
+    $('#seedLocal').hidden=SH.ro||!n; $('#seedLocal').textContent=`ใช้แผนจากเครื่องนี้ (${n} คัน)`; $('#seedExample').hidden=SH.ro;
+    $('#sharedEmptyText').textContent=SH.ro?'ผู้ที่มีสิทธิ์แก้ไขยังไม่ได้สร้างแผน เมื่อมีการเพิ่มรถ ตารางจะแสดงที่นี่ทันที':'เริ่มจากแผนที่มีในเครื่องนี้ หรือใช้แผนตัวอย่างแล้วแก้ทับ หรือกด "+ เพิ่มรถ" / "วางจาก Excel" ด้านล่าง';
+  }
+  planDirty=false; updatePlanLive();
+}
+function updatePlanLive(){
+  const ck=planChecks();
+  [['in',plan.in],['out',plan.out]].forEach(([k,list])=>list.forEach(r=>{
+    const st=document.getElementById(`${k}-st-${r.id}`); if(st)st.innerHTML=pillHTML(r);
+    const c=document.getElementById(`${k}-ck-${r.id}`); if(c){const m=ck[r.id];c.textContent=m?m[1]:'';c.className='chk '+(m?m[0]:'');}
+  }));
+  const sum=l=>l.reduce((a,r)=>a+(+r.t||0),0);
+  const inDone=plan.in.filter(r=>r.status==='done'), outDone=plan.out.filter(r=>r.status==='done');
+  const nIn=plan.in.filter(isOpen).sort(byTime)[0], nOut=plan.out.filter(isOpen).sort(byTime)[0];
+  const late=plan.in.concat(plan.out).filter(r=>r.status==='pending'&&S.simMin-toMin(r.time)>15).length;
+  const warns=Object.values(ck).filter(m=>m[0]).length;
+  $('#planKpis').innerHTML=[
+    ['รับวัตถุดิบ',`${inDone.length}/${plan.in.length}`,'คัน',`${sum(inDone).toFixed(0)} / ${sum(plan.in).toFixed(0)} t`],
+    ['จ่ายปูน',`${outDone.length}/${plan.out.length}`,'คัน',`${sum(outDone).toFixed(0)} / ${sum(plan.out).toFixed(0)} t`],
+    ['คิวรับถัดไป',nIn?nIn.time:'–','',nIn?`${nIn.plate} · ${S.raw[nIn.mat].name}`:'ไม่มีรถในคิว'],
+    ['คิวจ่ายถัดไป',nOut?nOut.time:'–','',nOut?`${nOut.plate} · ${nOut.t} t`:'ไม่มีรถในคิว'],
+    ['ล่าช้า / ต้องตรวจ',`${late} / ${warns}`,'',late||warns?'ดูคอลัมน์สถานะและตรวจแผน':'แผนเป็นไปตามเวลา']
+  ].map(([k,v,u,s],i)=>`<div class="kpi${i===4&&(late||warns)?' alarm':''}"><span>${k}</span><strong>${v}<small>${u}</small></strong><em>${esc(s)}</em></div>`).join('');
+  const pendIn=S.raw.map((_,i)=>sum(plan.in.filter(r=>isOpen(r)&&+r.mat===i)));
+  const stock=S.cem.reduce((a,c)=>a+c.lv,0)/100*S.cemCap, pendOut=sum(plan.out.filter(isOpen));
+  $('#projTable').innerHTML='<tr><th>ไซโล</th><th>ตอนนี้</th><th>รับเข้าตามแผน</th><th>ใช้ในหม้อบด</th><th>ถ้ารับครบตอนนี้</th></tr>'+
+    S.raw.map((r,i)=>{const now=r.lv/100*r.cap,p=(now+pendIn[i])/r.cap*100;return `<tr><td>${r.code} ${r.name}</td><td>${Math.round(now).toLocaleString()} t · ${r.lv.toFixed(0)}%</td><td>+${pendIn[i].toFixed(0)} t</td><td>${(running()?r.base*ff():0).toFixed(1)} t/h</td><td style="color:${p>95?'var(--hh)':p>90?'var(--high)':'inherit'}">${p.toFixed(0)}%</td></tr>`;}).join('')+
+    `<tr><td>ปูน SILO-05–08</td><td>${Math.round(stock).toLocaleString()} t</td><td>−${pendOut.toFixed(0)} t (จ่าย)</td><td>+${(running()?100*ff():0).toFixed(1)} t/h (ผลิต)</td><td style="color:${stock<pendOut?'var(--high)':'inherit'}">${stock>=pendOut?'พอจ่ายทันที':'ต้องรอผลิตเพิ่ม '+Math.round(pendOut-stock)+' t'}</td></tr>`;
+  if(document.activeElement!==$('#simTime'))$('#simTime').value=simHM();
+}
+/* ---------- shared plan (db capability; falls back to this browser only) ---------- */
+const SH={db:null,mode:'local',ro:false,got:{in:false,out:false},backup:{in:[],out:[]},q:{}};
+const COL={in:'inbound',out:'outbound'};
+const planMsg=$('#planMsg');
+function showMsg(t){planMsg.textContent=t||'';planMsg.hidden=!t;}
+function setSyncBadge(state){
+  const b=$('#syncBadge');
+  const m={local:['แผนในเครื่องนี้','stop','แผนบันทึกเฉพาะในเบราว์เซอร์นี้ เปิดจากลิงก์ claude.ai เพื่อใช้แผนส่วนกลาง'],
+    connecting:['กำลังเชื่อมต่อแผนส่วนกลาง…','wait',''],
+    shared:['แผนส่วนกลาง · ซิงค์แล้ว','run','ทุกคนที่เปิดลิงก์นี้เห็นและแก้ตารางเดียวกัน'],
+    ro:['แผนส่วนกลาง · ดูอย่างเดียว','wait','สิทธิ์ของคุณดูแผนได้แต่แก้ไม่ได้ ขอสิทธิ์ Contributor จากเจ้าของ'],
+    error:['เชื่อมต่อแผนส่วนกลางไม่ได้ · ใช้แผนในเครื่อง','alarm','']}[state];
+  b.textContent=m[0]; b.className='pill '+m[1]; b.title=m[2];
+}
+const clampT=v=>Math.max(1,Math.min(45,Math.round((+v||0)*2)/2||1));
+function cleanRow(k,d){
+  const time=/^\d{2}:\d{2}$/.test(d.time)?d.time:'00:00', plate=String(d.plate==null?'':d.plate).slice(0,40), t=clampT(d.t);
+  if(k==='in'){const mat=Math.max(0,Math.min(3,Math.floor(+d.mat)||0));return {time,plate,mat,t};}
+  const silo=d.silo==='auto'||d.silo==null?'auto':Math.max(0,Math.min(3,Math.floor(+d.silo)||0));
+  return {time,plate,customer:String(d.customer==null?'':d.customer).slice(0,80),t,silo};
+}
+function onWriteErr(e){
+  const c=e&&e.code;
+  if(c==='invalid_argument'||c==='not_granted'||c==='revoked'){SH.ro=true;setSyncBadge('ro');showMsg('บันทึกไม่ได้: สิทธิ์ของคุณดูแผนได้อย่างเดียว');renderPlan();}
+  else if(c==='quota_exceeded')showMsg('พื้นที่เก็บแผนเต็ม ลบรายการที่เสร็จแล้วก่อนแล้วลองใหม่');
+  else showMsg('บันทึกแผนส่วนกลางไม่สำเร็จ ตรวจการเชื่อมต่อแล้วแก้ไขอีกครั้ง');
+}
+function queue(id,fn){const p=(SH.q[id]||Promise.resolve()).then(fn).catch(onWriteErr);SH.q[id]=p;return p;}
+function pushRow(k,r){
+  if(SH.mode!=='shared'||SH.ro)return Promise.resolve();
+  const body=Object.assign(cleanRow(k,r),{updatedAt:new Date().toISOString()});
+  return queue(r.id,()=>SH.db.collection(COL[k]).doc(r.id).set(body));
+}
+function dropRow(k,id){
+  if(SH.mode!=='shared'||SH.ro)return Promise.resolve();
+  return queue(id,()=>SH.db.collection(COL[k]).doc(id).delete());
+}
+function applySnapshot(k,snap){
+  SH.got[k]=true;
+  const seen=new Set();
+  snap.docs.forEach(d=>{
+    if(!d.exists)return; seen.add(d.id);
+    const body=cleanRow(k,d.data()||{}), r=plan[k].find(x=>x.id===d.id);
+    if(!r)plan[k].push(Object.assign({id:d.id,status:'pending',doneAt:'',note:''},body));
+    else if(r.status!=='active')Object.assign(r,body);
+  });
+  plan[k]=plan[k].filter(r=>seen.has(r.id)||r.status==='active');
+  planDirty=true; savePlan();
+}
+(async()=>{
+  const C=window.claude;
+  if(!C||!C.use){setSyncBadge('local');return;}
+  setSyncBadge('connecting');
+  let db=null,user=null;
+  try{[db,user]=await Promise.all([C.use('db'),C.use('user')]);}catch(e){}
+  if(!db){setSyncBadge('local');return;}
+  SH.db=db; SH.backup={in:plan.in.map(r=>Object.assign({},r)),out:plan.out.map(r=>Object.assign({},r))};
+  try{if(user&&await user.can('data.write')===false)SH.ro=true;}catch(e){}
+  SH.mode='shared'; setSyncBadge(SH.ro?'ro':'shared');
+  ['in','out'].forEach(k=>db.collection(COL[k]).onSnapshot(s=>applySnapshot(k,s),err=>{
+    if(err&&err.code==='revoked'){SH.ro=true;setSyncBadge('ro');}else{setSyncBadge('error');showMsg('การเชื่อมต่อแผนส่วนกลางหลุด โหลดหน้าใหม่เพื่อเชื่อมต่ออีกครั้ง');}
+  }));
+})();
+async function writeAll(rows){for(const [k,r] of rows){await pushRow(k,r);}}
+$('#seedLocal').addEventListener('click',()=>{
+  const rows=[];['in','out'].forEach(k=>SH.backup[k].forEach(r=>{const c=Object.assign({},r,{status:'pending',doneAt:'',note:''});plan[k].push(c);rows.push([k,c]);}));
+  planDirty=true;renderPlan();writeAll(rows);logEvent('อัปโหลดแผนจากเครื่องนี้ขึ้นแผนส่วนกลาง','info');
+});
+$('#seedExample').addEventListener('click',()=>{
+  const ex=examplePlan(),rows=[];['in','out'].forEach(k=>ex[k].forEach(r=>{plan[k].push(r);rows.push([k,r]);}));
+  S.simMin=7*60+55;planDirty=true;renderPlan();writeAll(rows);logEvent('สร้างแผนส่วนกลางจากแผนตัวอย่าง','info');
+});
+
+function findRow(id){id=String(id);return plan.in.find(r=>r.id===id)||plan.out.find(r=>r.id===id);}
+[inBody,outBody].forEach(tb=>{
+  tb.addEventListener('input',e=>{const f=e.target.dataset.f;if(f!=='plate'&&f!=='customer')return;const r=findRow(e.target.closest('tr').dataset.id);r[f]=e.target.value;savePlan();});
+  tb.addEventListener('change',e=>{
+    const f=e.target.dataset.f; if(!f)return; const tr=e.target.closest('tr'), r=findRow(tr.dataset.id); let v=e.target.value;
+    if(f==='t'){v=clampT(v);e.target.value=v;}
+    if(f==='mat')v=+v; if(f==='silo'&&v!=='auto')v=+v; if(f==='time'&&!v)v=r.time;
+    r[f]=v; if(r.status==='hold'){r.status='pending';r.note='';}
+    savePlan(); pushRow(tr.dataset.list,r); if(f==='time'||f==='mat')renderPlan(); else updatePlanLive();
+  });
+  tb.addEventListener('click',e=>{
+    const b=e.target.closest('[data-del]'); if(!b)return; const id=b.dataset.del;
+    ['in','out'].forEach(k=>{const i=plan[k].findIndex(r=>r.id===id);if(i>=0&&plan[k][i].status!=='active'){plan[k].splice(i,1);dropRow(k,id);}});
+    savePlan(); renderPlan();
+  });
+});
+const lastTime=list=>list.length?list.slice().sort(byTime)[list.length-1].time:simHM();
+function addRow(k,r){plan[k].push(r);savePlan();pushRow(k,r);renderPlan();const el=document.getElementById(`${k}-plate-${r.id}`);if(el)el.focus();}
+$('#addIn').addEventListener('click',()=>addRow('in',{id:newId(),time:hm(Math.max(toMin(lastTime(plan.in))+20,S.simMin)),plate:'',mat:0,t:28,status:'pending',doneAt:'',note:''}));
+$('#addOut').addEventListener('click',()=>addRow('out',{id:newId(),time:hm(Math.max(toMin(lastTime(plan.out))+25,S.simMin)),plate:'',customer:'',t:30,silo:'auto',status:'pending',doneAt:'',note:''}));
+$('#clearDone').addEventListener('click',()=>{['in','out'].forEach(k=>{plan[k].filter(r=>r.status==='done').forEach(r=>dropRow(k,r.id));plan[k]=plan[k].filter(r=>r.status!=='done');});savePlan();renderPlan();});
+let resetArm=0;
+$('#resetPlan').addEventListener('click',e=>{
+  if(Date.now()-resetArm>3000){resetArm=Date.now();e.target.textContent=SH.mode==='shared'?'กดอีกครั้ง: แทนที่แผนของทุกคน':'กดอีกครั้งเพื่อแทนที่แผน';setTimeout(()=>e.target.textContent='โหลดแผนตัวอย่าง',3000);return;}
+  resetArm=0; e.target.textContent='โหลดแผนตัวอย่าง';
+  ['in','out'].forEach(k=>plan[k].filter(r=>r.status!=='active').forEach(r=>dropRow(k,r.id)));
+  const keepIn=plan.in.filter(r=>r.status==='active'), keepOut=plan.out.filter(r=>r.status==='active'), ex=examplePlan();
+  plan.in=keepIn.concat(ex.in); plan.out=keepOut.concat(ex.out); S.simMin=7*60+55;
+  savePlan(); renderPlan(); writeAll(ex.in.map(r=>['in',r]).concat(ex.out.map(r=>['out',r]))); logEvent('โหลดแผนขนส่งตัวอย่าง','info');
+});
+
+/* ---------- paste from Excel (tab-separated rows) ---------- */
+const MAT_WORDS=[['clinker','คลิงเกอร์','ปูนเม็ด'],['gypsum','ยิปซัม','ยิปซั่ม'],['limestone','หินปูน','lime'],['additive','สารเติมแต่ง','สารเติม','pozzolan','ปอซโซลาน']];
+let pasteTarget='in', pasteRows=[];
+function parseTime(s){
+  s=String(s).trim(); if(!s)return null;
+  if(/^0?\.\d+$|^0$/.test(s)){const m=Math.round(parseFloat(s)*1440);return hm(m);}
+  const m=s.match(/^(\d{1,2})[:.](\d{2})(?:[:.]\d{2})?\s*(น\.?)?$/); if(!m)return null;
+  const h=+m[1],mi=+m[2]; if(h>23||mi>59)return null; return pad2(h)+':'+pad2(mi);
+}
+const parseNum=s=>{const v=parseFloat(String(s).replace(/[, ]/g,'').replace(/[a-zA-Zก-๙.]+$/,''));return isFinite(v)?v:NaN;};
+function parseMat(s){
+  s=String(s).trim().toLowerCase(); if(!s)return -1;
+  if(/^[1-4]$/.test(s))return +s-1;
+  const sm=s.match(/silo-?0?([1-4])/); if(sm)return +sm[1]-1;
+  return MAT_WORDS.findIndex(ws=>ws.some(w=>s.includes(w)));
+}
+function parseSilo(s){
+  s=String(s||'').trim().toLowerCase(); if(!s||/auto|อัตโนมัติ/.test(s))return 'auto';
+  const m=s.match(/(\d+)/); if(!m)return null; const n=+m[1];
+  if(n>=5&&n<=8)return n-5; if(n>=1&&n<=4)return n-1; return null;
+}
+function parsePaste(text){
+  const lines=text.replace(/\r/g,'').split('\n').filter(l=>l.trim());
+  const rows=lines.map(l=>l.includes('\t')?l.split('\t'):l.split(/\s*[,;]\s*/));
+  if(rows.length&&!parseTime(rows[0][0]))rows.shift();
+  return rows.map(c=>{
+    const err=[], time=parseTime(c[0]), plate=String(c[1]||'').trim(), t=parseNum(c[3]);
+    if(!time)err.push(`เวลา "${c[0]||''}" ไม่ถูกต้อง`);
+    if(!(t>0&&t<=45))err.push(`น้ำหนัก "${c[3]||''}" ต้องอยู่ระหว่าง 1–45 t`);
+    if(pasteTarget==='in'){
+      const mat=parseMat(c[2]); if(mat<0)err.push(`ไม่รู้จักวัตถุดิบ "${c[2]||''}"`);
+      return {err,row:{time,plate,mat,t}};
+    }
+    const silo=parseSilo(c[4]); if(silo===null)err.push(`ไซโล "${c[4]}" ต้องเป็น SILO-05 ถึง 08`);
+    return {err,row:{time,plate,customer:String(c[2]||'').trim(),t,silo:silo===null?'auto':silo}};
+  });
+}
+function renderPaste(){
+  pasteRows=parsePaste($('#pasteBox').value);
+  const ok=pasteRows.filter(p=>!p.err.length).length, bad=pasteRows.length-ok;
+  const head=pasteTarget==='in'?'<th>เวลา</th><th>ทะเบียน</th><th>วัตถุดิบ</th><th>ตัน</th><th>ผลตรวจ</th>':'<th>เวลา</th><th>ทะเบียน</th><th>ลูกค้า</th><th>ตัน</th><th>ไซโล</th><th>ผลตรวจ</th>';
+  $('#pastePreview').innerHTML=pasteRows.length?`<table class="ptable"><thead><tr>${head}</tr></thead><tbody>${pasteRows.map(({err,row:r})=>`<tr class="${err.length?'bad':''}"><td class="muted">${r.time||'–'}</td><td>${esc(r.plate)}</td><td>${pasteTarget==='in'?(r.mat>=0?S.raw[r.mat].name:'–'):esc(r.customer)}</td><td class="muted">${isFinite(r.t)?r.t:'–'}</td>${pasteTarget==='out'?`<td class="muted">${r.silo==='auto'?'อัตโนมัติ':S.cem[r.silo].code}</td>`:''}<td class="chk ${err.length?'bad':''}">${err.length?esc(err.join(' · ')):'พร้อมเพิ่ม'}</td></tr>`).join('')}</tbody></table><p class="d-hint">${ok} แถวพร้อมเพิ่ม${bad?` · ${bad} แถวมีปัญหา (จะไม่ถูกเพิ่ม แก้ใน Excel แล้ววางใหม่)`:''}</p>`:'';
+  const b=$('#pasteAdd'); b.disabled=!ok||SH.ro; b.textContent=ok?`เพิ่ม ${ok} รายการ`:'เพิ่มรายการ';
+}
+function openPaste(k){
+  pasteTarget=k; $('#pastePanel').hidden=false;
+  $('#pasteTitle').textContent=k==='in'?'วางจาก Excel → รถรับวัตถุดิบ':'วางจาก Excel → รถจ่ายปูน';
+  $('#pasteCols').textContent=k==='in'?'ลำดับคอลัมน์: เวลา | ทะเบียนรถ | วัตถุดิบ | น้ำหนัก (t)':'ลำดับคอลัมน์: เวลา | ทะเบียนรถ | ลูกค้า | ปริมาณ (t) | ไซโล (ไม่ใส่ = อัตโนมัติ)';
+  renderPaste(); $('#pasteBox').focus(); $('#pastePanel').scrollIntoView({block:'nearest'});
+}
+$('#pasteIn').addEventListener('click',()=>openPaste('in'));
+$('#pasteOut').addEventListener('click',()=>openPaste('out'));
+$('#pasteBox').addEventListener('input',renderPaste);
+$('#pasteCancel').addEventListener('click',()=>{$('#pastePanel').hidden=true;});
+$('#pasteAdd').addEventListener('click',()=>{
+  const k=pasteTarget, rows=pasteRows.filter(p=>!p.err.length).map(p=>Object.assign({id:newId()},p.row,{status:'pending',doneAt:'',note:''}));
+  rows.forEach((r,i)=>{r.id+=i;plan[k].push(r);});
+  savePlan(); renderPlan(); writeAll(rows.map(r=>[k,r]));
+  logEvent(`เพิ่ม${k==='in'?'รถรับวัตถุดิบ':'รถจ่ายปูน'} ${rows.length} คันจาก Excel`,'info');
+  $('#pasteBox').value=''; $('#pastePanel').hidden=true;
+});
+$('#simTime').addEventListener('change',e=>{if(e.target.value){S.simMin=toMin(e.target.value);savePlan();updatePlanLive();}});
+$('#skipBtn').addEventListener('click',()=>{
+  const nx=plan.in.concat(plan.out).filter(r=>isOpen(r)&&toMin(r.time)>S.simMin).sort(byTime)[0];
+  if(nx){S.simMin=toMin(nx.time);savePlan();updatePlanLive();}
+});
+$('#copyCsv').addEventListener('click',e=>{
+  const q=v=>`"${String(v).replace(/"/g,'""')}"`;
+  const lines=[['ประเภท','เวลา','ทะเบียนรถ','วัตถุดิบ/ลูกค้า','ตัน','ไซโล','สถานะ','เวลาเสร็จ'].join(',')]
+    .concat(plan.in.slice().sort(byTime).map(r=>['รับเข้า',r.time,q(r.plate),q(S.raw[r.mat].name),r.t,S.raw[r.mat].code,STATUS[r.status][0],r.doneAt].join(',')))
+    .concat(plan.out.slice().sort(byTime).map(r=>['จ่ายออก',r.time,q(r.plate),q(r.customer),r.t,r.silo==='auto'?'อัตโนมัติ':S.cem[r.silo].code,STATUS[r.status][0],r.doneAt].join(',')));
+  const csv=lines.join('\n'), ta=$('#csvOut'), b=e.target;
+  const fallback=()=>{ta.value=csv;ta.hidden=false;ta.focus();ta.select();b.textContent='เลือกข้อความแล้ว กด Ctrl+C';};
+  try{navigator.clipboard.writeText(csv).then(()=>{b.textContent='คัดลอกแล้ว';ta.hidden=true;setTimeout(()=>b.textContent='คัดลอกเป็น CSV',2000);},fallback);}catch(err){fallback();}
+});
+function planTick(){
+  if(S.view!=='plan')return;
+  const busy=planEl.contains(document.activeElement)&&/INPUT|SELECT/.test(document.activeElement.tagName);
+  if(planDirty&&!busy)renderPlan(); else updatePlanLive();
+}
+logEvent('เริ่มจำลองการเดินเครื่อง Mill feed 72%','info');
+
+/* ---------- live transport dashboard ---------- */
+const IN_STAGES=[['approach','เข้าจุดรับ',6],['dump','เทวัตถุดิบ',6],['leave','ออกจากโรงงาน',6]];
+const outStages=r=>[['in','เข้าโรงงาน',5],['weigh','ชั่งรถเปล่า',2.5],['move','เข้าจุดโหลด',3],['load','โหลดปูน',(+r.t||30)/3.75],['out','ออกจากโรงงาน',5]];
+const IN_DUR=18, outDur=r=>outStages(r).reduce((a,s)=>a+s[2],0);
+const minsTxt=m=>{m=Math.round(m);return m>=60?`${Math.floor(m/60)} ชม. ${m%60} นาที`:`${m} นาที`;};
+function laneHTML(kind){
+  const T=kind==='in'?S.recv:S.load, r=T.row, list=kind==='in'?plan.in:plan.out;
+  if(!r||T.phase==='idle'||T.phase==='gap'){
+    const nx=list.filter(isOpen).sort(byTime)[0];
+    if(!nx)return '<div class="lane-empty">ไม่มีรถที่จุดนี้ และไม่มีรถเหลือในแผน</div>';
+    const d=toMin(nx.time)-S.simMin;
+    return `<div class="lane-empty">ไม่มีรถที่จุดนี้<br>คันถัดไป <b>${esc(nx.plate||'(ไม่ระบุ)')}</b> เวลา ${nx.time} · ${d>0?'อีก '+minsTxt(d):'ถึงเวลาแล้ว'}</div>`;
+  }
+  const detail=kind==='in'?`${S.raw[r.mat].name} ${r.t} t → ${S.raw[r.mat].code}`:`${esc(r.customer||'(ไม่ระบุลูกค้า)')} · ${r.t} t`;
+  if(T.phase==='hold')return `<div class="lane-top"><strong>${esc(r.plate||'(ไม่ระบุ)')}</strong><span class="pill alarm">รอ – ${esc(r.note)}</span></div><div class="lane-sub">${detail} · แผน ${r.time}</div><div class="lane-empty">รถจอดรอหน้าโรงงาน จนกว่า${kind==='in'?'ไซโลจะมีที่ว่าง':'ปูนในไซโลจะพอ'}</div>`;
+  const st=kind==='in'?IN_STAGES:outStages(r), idx=st.findIndex(s=>s[0]===T.phase);
+  const total=st.reduce((a,s)=>a+s[2],0);
+  const el=st.slice(0,idx).reduce((a,s)=>a+s[2],0)+(T.phase==='load'?(T.loaded/(+r.t))*st[idx][2]:Math.min(T.t,st[idx][2]));
+  const pct=Math.min(100,el/total*100), late=r.startMin!=null?r.startMin-toMin(r.time):0;
+  return `<div class="lane-top"><strong>${esc(r.plate||'(ไม่ระบุ)')}</strong><span class="pill run">${st[idx][1]}</span></div>
+    <div class="lane-sub">${detail} · แผน ${r.time}${late>15?` · <span style="color:var(--high)">เข้าช้า ${Math.round(late)} นาที</span>`:''}</div>
+    <ol class="stepper">${st.map((s,i)=>`<li class="${i<idx?'done':i===idx?'on':''}">${s[1]}</li>`).join('')}</ol>
+    <div class="prog"><i style="width:${pct.toFixed(1)}%"></i></div>
+    <div class="lane-meta">เริ่ม <b>${hm(r.startMin)}</b> · ใช้ไป <b>${Math.round(el)}</b> นาที · เสร็จประมาณ <b>${hm(S.simMin+total-el)}</b>${kind==='out'?` · โหลดแล้ว <b>${T.loaded.toFixed(1)} t</b>`:''}</div>`;
+}
+function tlRange(){
+  const ts=plan.in.concat(plan.out).map(r=>toMin(r.time)).concat([S.simMin]);
+  return [Math.floor((Math.min(...ts)-30)/30)*30, Math.ceil((Math.max(...ts)+60)/30)*30];
+}
+function renderTimeline(){
+  const [a,b]=tlRange(), PX=4, W=(b-a)*PX, X=m=>(m-a)*PX;
+  let h='';
+  for(let m=a;m<=b;m+=30)h+=`<div class="tl-tick" style="left:${X(m)}px">${hm(m)}</div>`;
+  [['in',plan.in,()=>IN_DUR,24],['out',plan.out,outDur,76]].forEach(([k,list,dur,top])=>{
+    h+=`<div class="tl-row" style="top:${top}px">`;
+    list.slice().sort(byTime).forEach(r=>{
+      const pm=toMin(r.time), late=r.status==='pending'&&S.simMin-pm>15;
+      const cls=r.status==='hold'?'hold':late?'late':'';
+      const tip=`${k==='in'?'รับเข้า':'จ่ายออก'} ${r.plate||'(ไม่ระบุ)'} · แผน ${r.time} · ${STATUS[r.status][0]}${r.doneAt?' '+r.doneAt:''}`;
+      h+=`<div class="tl-b tl-plan ${cls}" style="left:${X(pm)}px;width:${Math.max(14,dur(r)*PX-2)}px" title="${esc(tip)}">${esc(r.plate||'–')}</div>`;
+      if(r.startMin!=null&&(r.status==='active'||r.status==='done')){
+        const end=r.status==='done'&&r.doneMin!=null?r.doneMin:S.simMin;
+        h+=`<div class="tl-b tl-act ${r.status==='done'?'done':''}" style="left:${X(r.startMin)}px;width:${Math.max(6,(end-r.startMin)*PX-2)}px" title="${esc(tip)}">${esc(r.plate||'')}</div>`;
+      }
+    });
+    h+='</div>';
+  });
+  h+=`<div class="tl-now" style="left:${X(S.simMin)}px"><span>${simHM()}</span></div>`;
+  const box=$('#tTimeline');
+  let sc=box.querySelector('.tl-scroll');
+  if(!sc){box.innerHTML='<div class="tl-labels"><div>รับเข้า</div><div>จ่ายออก</div></div><div class="tl-scroll"><div class="tl"></div></div>';sc=box.querySelector('.tl-scroll');}
+  const tl=sc.firstChild; tl.style.width=W+'px'; tl.innerHTML=h;
+  if(S.tlScroll&&sc.clientWidth){sc.scrollLeft=Math.max(0,X(S.simMin)-sc.clientWidth/3);S.tlScroll=false;}
+}
+function drawCum(cv){
+  const w=cv.clientWidth,h=cv.clientHeight; if(!w)return;
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);}
+  const x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0); x.clearRect(0,0,w,h);
+  const [a,b]=tlRange(), now=Math.min(b,Math.max(a,S.simMin));
+  const planPts=list=>{let c=0;const p=[[a,0]];list.slice().sort(byTime).forEach(r=>{const m=toMin(r.time);p.push([m,c]);c+=+r.t;p.push([m,c]);});p.push([b,c]);return p;};
+  const actPts=list=>{let c=0;const p=[[a,0]];list.filter(r=>r.status==='done'&&r.doneMin!=null).sort((u,v)=>u.doneMin-v.doneMin).forEach(r=>{p.push([r.doneMin,c]);c+=+r.t;p.push([r.doneMin,c]);});p.push([now,c]);return p;};
+  const series=[[planPts(plan.in),C.c1,true],[planPts(plan.out),C.c2,true],[actPts(plan.in),C.c1,false],[actPts(plan.out),C.c2,false]];
+  const hi=Math.max(30,...series.map(s=>s[0][s[0].length-1][1])), step=niceStep(hi/4), top=Math.ceil(hi/step)*step;
+  const L=48,R=60,T=8,B=20,pw=w-L-R,ph=h-T-B, X=m=>L+pw*(m-a)/(b-a), Y=v=>T+ph*(1-v/top);
+  x.font='10px "IBM Plex Mono", monospace'; x.textBaseline='middle';
+  for(let v=0;v<=top+1e-6;v+=step){const y=Math.round(Y(v))+.5;x.strokeStyle=C.line;x.lineWidth=1;x.beginPath();x.moveTo(L,y);x.lineTo(L+pw,y);x.stroke();x.fillStyle=C.muted;x.textAlign='right';x.fillText(Math.round(v).toLocaleString(),L-6,y);}
+  const hstep=(b-a)>360?120:60;
+  x.textAlign='center'; for(let m=Math.ceil(a/hstep)*hstep;m<=b;m+=hstep)x.fillText(hm(m),X(m),h-7);
+  x.strokeStyle=tok('--hh'); x.setLineDash([3,3]); x.beginPath(); x.moveTo(X(now),T); x.lineTo(X(now),T+ph); x.stroke(); x.setLineDash([]);
+  series.forEach(([p,col,dash])=>{
+    x.strokeStyle=col; x.lineWidth=dash?1.2:2; x.setLineDash(dash?[5,4]:[]); x.globalAlpha=dash?.6:1;
+    x.beginPath(); p.forEach(([m,v],i)=>i?x.lineTo(X(m),Y(v)):x.moveTo(X(m),Y(v))); x.stroke();
+    x.setLineDash([]); x.globalAlpha=1;
+    const [lm,lv]=p[p.length-1]; if(!dash){x.fillStyle=col;x.beginPath();x.arc(X(lm),Y(lv),3.2,0,Math.PI*2);x.fill();}
+    x.textAlign='left'; x.fillStyle=dash?C.muted:C.fg; x.fillText(Math.round(lv)+' t',X(lm)+6,Y(lv)+(dash?-8:0));
+  });
+}
+function renderTrans(){
+  const all=plan.in.concat(plan.out), sum=l=>l.reduce((s,r)=>s+(+r.t||0),0);
+  const inDone=plan.in.filter(r=>r.status==='done'), outDone=plan.out.filter(r=>r.status==='done'), done=inDone.concat(outDone);
+  const onR=['approach','dump','leave'].includes(S.recv.phase)?1:0, onL=['in','weigh','move','load','out'].includes(S.load.phase)?1:0;
+  const timed=done.filter(r=>r.startMin!=null), onTime=timed.filter(r=>r.startMin-toMin(r.time)<=15).length;
+  const avg=l=>{const t=l.filter(r=>r.startMin!=null&&r.doneMin!=null);return t.length?t.reduce((s,r)=>s+(r.doneMin-r.startMin),0)/t.length:null;};
+  const aIn=avg(inDone), aOut=avg(outDone), aAll=avg(done);
+  const late=all.filter(r=>r.status==='pending'&&S.simMin-toMin(r.time)>15).length, held=all.filter(r=>r.status==='hold').length;
+  $('#tKpis').innerHTML=[
+    ['รถในโรงงานตอนนี้',onR+onL,'คัน',`รับ ${onR} · จ่าย ${onL} · เวลาจำลอง ${simHM()}`],
+    ['รับวัตถุดิบ',`${inDone.length}/${plan.in.length}`,'คัน',`${sum(inDone).toFixed(0)} / ${sum(plan.in).toFixed(0)} t`],
+    ['จ่ายปูน',`${outDone.length}/${plan.out.length}`,'คัน',`${sum(outDone).toFixed(0)} / ${sum(plan.out).toFixed(0)} t`],
+    ['ตรงเวลา',timed.length?Math.round(onTime/timed.length*100):'–','%',timed.length?`${onTime} จาก ${timed.length} คัน เข้าไม่เกิน 15 นาที`:'ยังไม่มีรถที่เสร็จ'],
+    ['เวลาเฉลี่ยต่อคัน',aAll==null?'–':Math.round(aAll),'นาที',`รับ ${aIn==null?'–':Math.round(aIn)} · จ่าย ${aOut==null?'–':Math.round(aOut)} นาที`],
+    ['ล่าช้า / รอ',`${late} / ${held}`,'คัน',late||held?'ดูไทม์ไลน์และคิวถัดไป':'ไม่มีรถค้าง']
+  ].map(([k,v,u,s],i)=>`<div class="kpi${i===5&&(late||held)?' alarm':''}"><span>${k}</span><strong>${v}<small>${u}</small></strong><em>${esc(s)}</em></div>`).join('');
+  $('#tRecv').innerHTML=laneHTML('in'); $('#tLoad').innerHTML=laneHTML('out');
+  renderTimeline(); drawCum($('#tCum'));
+  const q=plan.in.map(r=>['in',r]).concat(plan.out.map(r=>['out',r])).filter(([,r])=>isOpen(r)).sort((u,v)=>byTime(u[1],v[1])).slice(0,8);
+  $('#tQueue').innerHTML='<tr><th>เวลา</th><th>ประเภท</th><th>ทะเบียน</th><th>รายละเอียด</th><th>สถานะ</th></tr>'+(q.length?q.map(([k,r])=>{
+    const d=toMin(r.time)-S.simMin, s=r.status==='hold'?`<span style="color:var(--hh)">รอ – ${esc(r.note)}</span>`:d>0?`อีก ${minsTxt(d)}`:-d>15?`<span style="color:var(--high)">ล่าช้า ${minsTxt(-d)}</span>`:'ถึงเวลา';
+    return `<tr><td>${r.time}</td><td>${k==='in'?'รับเข้า':'จ่ายออก'}</td><td>${esc(r.plate||'–')}</td><td>${k==='in'?S.raw[r.mat].name:esc(r.customer||'–')} · ${r.t} t</td><td>${s}</td></tr>`;}).join(''):'<tr><td colspan="5">ไม่มีรถค้างในคิว</td></tr>');
+  const cust={}; plan.out.forEach(r=>{const c=r.customer||'(ไม่ระบุ)';cust[c]=cust[c]||{n:0,d:0,pt:0,dt:0};cust[c].n++;cust[c].pt+=+r.t;if(r.status==='done'){cust[c].d++;cust[c].dt+=+r.t;}});
+  const ce=Object.entries(cust).sort((u,v)=>v[1].pt-u[1].pt);
+  $('#tCust').innerHTML='<tr><th>ลูกค้า</th><th>รถ</th><th>จ่ายแล้ว / แผน</th></tr>'+(ce.length?ce.map(([c,v])=>`<tr><td>${esc(c)}</td><td>${v.d}/${v.n}</td><td>${v.dt.toFixed(0)} / ${v.pt.toFixed(0)} t<span class="mini"><i style="width:${(v.pt?v.dt/v.pt*100:0).toFixed(0)}%"></i></span></td></tr>`).join(''):'<tr><td colspan="3">ยังไม่มีรถจ่ายปูนในแผน</td></tr>');
+}
+
+/* ---------- run controls: Reset / Run / Stop / Step / Run Speed ---------- */
+function syncSimButtons(){
+  $('#simRun').classList.toggle('on',!S.paused); $('#simStop').classList.toggle('on',S.paused);
+  $('#simRun').setAttribute('aria-pressed',!S.paused); $('#simStop').setAttribute('aria-pressed',S.paused);
+}
+function setRun(on){if(S.paused===!on)return;S.paused=!on;S.stepLeft=0;syncSimButtons();logEvent(on?'เดินการจำลอง (Run)':'หยุดการจำลอง (Stop)','wait');}
+$('#simRun').addEventListener('click',()=>setRun(true));
+$('#simStop').addEventListener('click',()=>setRun(false));
+$('#simStep').addEventListener('click',()=>{if(!S.paused){S.paused=true;syncSimButtons();}S.stepLeft+=1;});
+$('#simReset').addEventListener('click',()=>{
+  S.raw.forEach((r,i)=>r.lv=INIT.raw[i]); S.cem.forEach((c,i)=>c.lv=INIT.cem[i]);
+  S.wfTotal=INIT.wf.slice(); Object.assign(S.m,INIT.m);
+  S.simMin=7*60+55; S.fillIdx=3; S.drawIdx=0; S.paused=true; S.stepLeft=0;
+  Object.assign(S.recv,{phase:'idle',t:1,cargo:0,count:0,tons:0,row:null});
+  Object.assign(S.load,{phase:'idle',t:1,loaded:0,count:0,tons:0,row:null,src:0});
+  plan.in.concat(plan.out).forEach(r=>{r.status='pending';r.doneAt='';r.note='';delete r.startMin;delete r.doneMin;});
+  S.tlScroll=true;
+  Object.keys(hist).forEach(k=>hist[k].length=0);
+  S.raw.forEach((r,i)=>prevCls.raw[i]=lvClass(r.lv)); S.cem.forEach((c,i)=>prevCls.cem[i]=lvClass(c.lv));
+  flows.forEach(f=>{f.t=0;f.items.forEach(m=>m.visible=false);f.shown=false;});
+  rTruck.g.position.set(RX.start,0,-12); rTruck.piv.rotation.z=0; lTruck.position.set(44,0,LZ.start);
+  logEl.innerHTML=''; logEvent('รีเซ็ตการจำลอง เวลา 07:55 กด Run เพื่อเริ่ม','info');
+  savePlan(); planDirty=true; syncSimButtons(); updateDetail(); refreshTags();
+  if(S.view==='dash')renderDash(); if(S.view==='trans')renderTrans();
+});
+const speedOf=v=>.25*Math.pow(80,v/100);
+$('#speed').addEventListener('input',e=>{S.speed=speedOf(+e.target.value);$('#speedOut').textContent=S.speed.toFixed(2);});
+syncSimButtons();
+
+/* ---------- simulation step ---------- */
+const ease=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+const RX={start:-82,stop:-47};
+const LZ={start:-38,weigh:-6,load:4.8,end:38};
+function startRecv(row){
+  const R=S.recv, r=S.raw[row.mat];
+  if(R.row&&R.row!==row&&R.row.status==='hold'){R.row.status='pending';R.row.note='';}
+  R.row=row; R.cargo=row.mat; planDirty=true;
+  [rTruck.loadMat,fRecvBelt.mat,fElev1.mat].forEach(m=>m.color.setHex(r.color));
+  if(r.lv+row.t/r.cap*100>95){
+    if(row.status!=='hold'){row.status='hold';row.note='ไซโลเต็ม';logEvent(`รถ ${row.plate||'(ไม่ระบุ)'} รอ: ${r.code} จะเกิน 95%`,'alarm');}
+    R.phase='hold';R.t=0;return;
+  }
+  row.status='active';row.note='';row.startMin=S.simMin;R.phase='approach';R.t=0;
+}
+function startLoad(row){
+  const L=S.load, w=i=>S.cem[i].lv/100*S.cemCap;
+  if(L.row&&L.row!==row&&L.row.status==='hold'){L.row.status='pending';L.row.note='';}
+  L.row=row; planDirty=true;
+  let src=-1;
+  if(row.silo!=='auto'){if(w(row.silo)>=row.t)src=+row.silo;}
+  else S.cem.forEach((c,i)=>{if(w(i)>=row.t&&(src<0||c.lv>S.cem[src].lv))src=i;});
+  if(src<0){
+    if(row.status!=='hold'){row.status='hold';row.note='ปูนไม่พอ';logEvent(`รถ ${row.plate||'(ไม่ระบุ)'} รอ: ปูนในไซโลไม่พอ ${row.t} t`,'alarm');}
+    L.phase='hold';L.t=0;return;
+  }
+  row.status='active';row.note='';row.startMin=S.simMin;L.src=src;S.drawIdx=src;L.loaded=0;L.phase='in';L.t=0;
+}
+function stepTrucks(dt){
+  S.simMin=(S.simMin+dt)%1440;
+  const R=S.recv; R.t+=dt;
+  if(R.phase==='idle'||R.phase==='hold'){
+    if(R.t>=1){R.t=0;const row=nextRow(plan.in);
+      if(row){R.empty=false;startRecv(row);}
+      else{if(R.phase==='hold'&&R.row&&R.row.status==='hold'){R.row.status='pending';R.row.note='';}R.phase='idle';R.row=null;}}
+  }
+  else if(R.phase==='approach'&&R.t>=6){R.phase='dump';R.t=0;}
+  else if(R.phase==='dump'){const r=S.raw[R.cargo];r.lv=Math.min(100,r.lv+R.row.t/r.cap*100/6*dt);if(R.t>=6){R.phase='leave';R.t=0;}}
+  else if(R.phase==='leave'&&R.t>=6){
+    R.phase='gap';R.t=0;R.count++;R.tons+=+R.row.t;R.row.status='done';R.row.doneAt=simHM();R.row.doneMin=S.simMin;planDirty=true;savePlan();
+    const r=S.raw[R.cargo];logEvent(`รับวัตถุดิบ ${R.row.plate||'(ไม่ระบุ)'}: ${r.name} ${R.row.t} t เข้า ${r.code}`,'run');
+  }
+  else if(R.phase==='gap'&&R.t>=2){R.phase='idle';R.t=1;R.row=null;}
+  let x=RX.start,tilt=0;
+  if(R.phase==='approach')x=RX.start+(RX.stop-RX.start)*ease(Math.min(1,R.t/6));
+  else if(R.phase==='dump'){x=RX.stop;tilt=Math.sin(Math.PI*Math.min(1,R.t/6))*.85;}
+  else if(R.phase==='leave')x=RX.stop+(RX.start-RX.stop)*ease(Math.min(1,R.t/6));
+  rTruck.g.position.set(x,0,-12); rTruck.piv.rotation.z=-tilt;
+  rTruck.load.visible=R.phase==='approach'||R.phase==='hold'||(R.phase==='dump'&&R.t<3.5);
+
+  const L=S.load; L.t+=dt; let z=LZ.start;
+  if(L.phase==='idle'||L.phase==='hold'){
+    if(L.t>=1){L.t=0;const row=nextRow(plan.out);
+      if(row)startLoad(row);
+      else{if(L.phase==='hold'&&L.row&&L.row.status==='hold'){L.row.status='pending';L.row.note='';}L.phase='idle';L.row=null;}}
+  }
+  else if(L.phase==='in'){z=LZ.start+(LZ.weigh-LZ.start)*ease(Math.min(1,L.t/5));if(L.t>=5){L.phase='weigh';L.t=0;L.tare=13.8+Math.random()*1.8;}}
+  else if(L.phase==='weigh'){z=LZ.weigh;if(L.t>=2.5){L.phase='move';L.t=0;}}
+  else if(L.phase==='move'){z=LZ.weigh+(LZ.load-LZ.weigh)*ease(Math.min(1,L.t/3));if(L.t>=3){L.phase='load';L.t=0;L.loaded=0;S.drawIdx=L.src;}}
+  else if(L.phase==='load'){
+    z=LZ.load; let c=S.cem[S.drawIdx];
+    if(c.lv<=.05){let j=-1;S.cem.forEach((x,k)=>{if(x.lv>.05&&(j<0||x.lv>S.cem[j].lv))j=k;});if(j>=0){S.drawIdx=j;c=S.cem[j];}}
+    const take=Math.min(30/8*dt,L.row.t-L.loaded,c.lv/100*S.cemCap);
+    L.loaded+=take; c.lv=Math.max(0,c.lv-take/S.cemCap*100);
+    if(L.loaded>=L.row.t-1e-6){L.phase='out';L.t=0;L.count++;L.tons+=+L.row.t;L.row.status='done';L.row.doneAt=simHM();L.row.doneMin=S.simMin;planDirty=true;savePlan();
+      logEvent(`จ่ายปูน ${L.row.plate||'(ไม่ระบุ)'}: ${L.row.t} t จาก ${c.code} ให้ ${L.row.customer||'(ไม่ระบุ)'}`,'run');}
+  }
+  else if(L.phase==='out'){z=LZ.load+(LZ.end-LZ.load)*ease(Math.min(1,L.t/5));if(L.t>=5){L.phase='gap';L.t=0;}}
+  else if(L.phase==='gap'){z=LZ.start;if(L.t>=2){L.phase='idle';L.t=1;L.row=null;L.loaded=0;}}
+  lTruck.position.set(44,0,z);
+}
+function stepProcess(dt){
+  const run=running(), f=ff();
+  if(run){
+    // 1 simulated second = 1 plant minute
+    S.raw.forEach((r,i)=>{r.lv=Math.max(0,r.lv-r.base*f/60/r.cap*100*dt);S.wfTotal[i]+=r.base*f*dt/60;});
+    const c=S.cem[S.fillIdx]; c.lv=Math.min(100,c.lv+100*f/60/S.cemCap*100*dt);
+    if(c.lv>=92){let i=0;S.cem.forEach((x,k)=>{if(x.lv<S.cem[i].lv)i=k;});logEvent(`${c.code} เต็ม สลับการเติมปูนไป ${S.cem[i].code}`,'info');S.fillIdx=i;}
+  }
+  const tgt=v=>run?v:0;
+  const a=Math.min(1,dt*.6);
+  S.m.cur+=(tgt(55+.97*S.feed)-S.m.cur)*a; S.m.pow=S.m.cur*7.36;
+  S.m.bt+=((run?45+.33*S.feed:32)-S.m.bt)*dt*.05; S.m.mt+=((run?40+.77*S.feed:35)-S.m.mt)*dt*.04;
+  S.m.vib+=(tgt(1.2+.022*S.feed)-S.m.vib)*a;
+  S.m.dp=850+Math.sin(performance.now()/4000)*35; S.m.clean=Math.max(0,S.m.clean-dt); if(Math.random()<dt*.08)S.m.clean=1.2;
+}
+function jitter(){
+  if(!running())return;
+  S.m.cur+=n(.8); S.m.vib+=n(.08); S.m.fanSp=86+n(.3); S.m.fanCur=56.3+n(.5); S.m.air=125600+n(450); S.m.pr=-1250+n(12);
+  S.m.sepRpm=1154+n(4); S.m.sepCur=38.2+n(.4);
+}
+
+/* ---------- loop ---------- */
+function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix();}
+new ResizeObserver(resize).observe(stage); resize();
+
+const clock=new THREE.Clock(); let acc=0, tick=0;
+function animate(){
+  requestAnimationFrame(animate);
+  const dt=Math.min(.05,clock.getDelta());
+  let sdt=0;
+  if(!S.paused)sdt=dt*S.speed;
+  else if(S.stepLeft>0){sdt=Math.min(dt*Math.max(1,S.speed),S.stepLeft);S.stepLeft-=sdt;if(S.stepLeft<1e-6)S.stepLeft=0;}
+  if(sdt){stepTrucks(sdt);stepProcess(sdt);}
+  const run=running();
+  S.mill+=((run?1:0)-S.mill)*Math.min(1,dt*1.2); S.fan+=((run?1:0)-S.fan)*Math.min(1,dt*.8);
+  shell.rotation.x+=dt*1.6*S.mill; imp.rotation.z-=dt*16*S.fan; sepHub.rotation.y+=dt*6*S.mill;
+  flows.forEach(f=>{
+    if(!sdt)return;
+    const g=f.gate(); f.t=(f.t+sdt*f.speed*g/f.len)%1;
+    const show=g>0, N=f.items.length;
+    if(show!==f.shown){f.items.forEach(m=>m.visible=show);f.shown=show;}
+    if(show)f.items.forEach((m,i)=>{m.position.copy(f.path.getPointAt((f.t+i/N)%1));m.position.y+=f.lift;});
+  });
+  rawSilos.forEach((s,i)=>s.set(S.raw[i].lv)); cemSilos.forEach((s,i)=>s.set(S.cem[i].lv));
+  const alarm=S.raw.some(r=>r.lv>=90)||S.recv.phase==='hold';
+  const blink=alarm&&Math.floor(performance.now()/400)%2===0;
+  beaconMat.emissiveIntensity=blink?2.2:0; beaconLight.intensity=blink?2.5:0;
+  wbScreen.material.emissiveIntensity=S.load.phase==='weigh'?2.2:.6;
+  if(selRing.visible){ringMat.opacity=.45+.3*Math.sin(performance.now()/300);}
+  if(S.fly){const F=S.fly;F.k=Math.min(1,F.k+dt/1.2);const e=ease(F.k);camera.position.lerpVectors(F.p0,F.p1,e);controls.target.lerpVectors(F.t0,F.t1,e);if(F.k>=1)S.fly=null;}
+  controls.update();
+  acc+=dt; if(acc>.5){acc=0;jitter();updateDetail();refreshTags();checkAlarms();if(!S.paused)sample();if(S.view==='dash')renderDash();if(S.view==='trans')renderTrans();planTick();
+    const ps=$('#plantState');const [t,c]=DEF.plant.status();ps.textContent=t;ps.className='pill '+c;
+    const d=new Date(),p=v=>String(v).padStart(2,'0');$('#clock').textContent=`${p(d.getDate())}/${p(d.getMonth()+1)}/${d.getFullYear()} · เวลาจำลอง ${simHM()}`;}
+  if(!S.view||S.view==='3d'){renderer.render(scene,camera);placeLabels();}
+}
+select('plant'); refreshTags(); animate();
+})();
+</script>
+
